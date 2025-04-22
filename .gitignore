@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Data files
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Model files
+models/saved/*
+models/embeddings/*
+!models/saved/.gitkeep
+!models/embeddings/.gitkeep
+
+# Output files
+outputs/figures/*
+outputs/results/*
+!outputs/figures/.gitkeep
+!outputs/results/.gitkeep
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Large files
+*.npy
+*.joblib
+*.pkl
+*.h5
+*.hdf5
+
+# OS specific
+.DS_Store
+Thumbs.db src/roberta-toxic-finetuned/pytorch_model.bin
+*.bin
+*.pt
+*.safetensors
+src/roberta-toxic-output/checkpoint-*/
+src/roberta-toxic-finetuned/
+*.pt
+*.safetensors
+*.json
+*.pt
+*.bin
+*.safetensors
+model_checkpoints/
+src/roberta-toxic-*/

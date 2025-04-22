@@ -1,0 +1,141 @@
+text,original_text,pattern,is_toxic
+This is a fuck comment,This is a fuck comment,original,True
+Th!$ 1$ @ fuck c0mm3n7,This is a fuck comment,leetspeak,True
+T h i s   i s   a   f u c k   c o m m e n t ,This is a fuck comment,space_injection,True
+TTThhhiisss   iisss   aa   ffuuuccckkk   ccoommmmmeeennnttt,This is a fuck comment,char_repetition,True
+T@h%i%s% #i$s@ *a$ $f$u@c#k% *c%o$m@m%e#n#t@,This is a fuck comment,special_chars,True
+THIS Is A fUCK comMEnT,This is a fuck comment,case_variation,True
+This is a fuck comment,This is a fuck comment,unicode,True
+This is a moron comment,This is a moron comment,original,True
+Th!5 !$ @ m0r0n c0mm3n7,This is a moron comment,leetspeak,True
+T h i s   i s   a   m o r o n   c o m m e n t ,This is a moron comment,space_injection,True
+TThhiiss  iiisss   aaa   mmooorrroonnn  cccooommmmeeennnttt,This is a moron comment,char_repetition,True
+T%h$i*s# #i%s@ $a# $m%o%r#o*n% #c#o@m%m*e@n%t$,This is a moron comment,special_chars,True
+THIS is A moroN cOMmeNT,This is a moron comment,case_variation,True
+This is a moron comment,This is a moron comment,unicode,True
+This is a slut comment,This is a slut comment,original,True
+Th1$ !$ 4 $lu7 c0mm3n7,This is a slut comment,leetspeak,True
+T h i s   i s   a   s l u t   c o m m e n t ,This is a slut comment,space_injection,True
+TThhhiisss  iisss   aaa  sslluuutt   cccooommmmmeeennnttt,This is a slut comment,char_repetition,True
+T%h#i#s% *i@s% #a% @s@l$u@t% %c%o#m%m$e$n@t$,This is a slut comment,special_chars,True
+THIS Is a sLuT CoMmENt,This is a slut comment,case_variation,True
+This is a slut comment,This is a slut comment,unicode,True
+This is a normal comment,This is a normal comment,original,False
+Th1$ !5 @ n0rm4l c0mm3n7,This is a normal comment,leetspeak,False
+T h i s   i s   a   n o r m a l   c o m m e n t ,This is a normal comment,space_injection,False
+TTThhiiiss   iiiss   aaa  nnnooorrmmmaall   cccooommmmeeennttt,This is a normal comment,char_repetition,False
+T$h@i#s% %i#s# *a# *n#o$r#m%a$l% #c$o#m$m*e%n#t$,This is a normal comment,special_chars,False
+tHIs IS a nORmaL COmmenT,This is a normal comment,case_variation,False
+This is a normal comment,This is a normal comment,unicode,False
+This is a whore comment,This is a whore comment,original,True
+Th!$ !$ 4 wh0r3 c0mm3n7,This is a whore comment,leetspeak,True
+T h i s   i s   a   w h o r e   c o m m e n t ,This is a whore comment,space_injection,True
+TTThhiisss  iiss  aaa  wwhhoorrreee  cccoommmmeeennntt,This is a whore comment,char_repetition,True
+T$h#i@s% *i%s@ %a$ %w%h@o@r%e* %c$o%m*m$e*n@t#,This is a whore comment,special_chars,True
+tHis is A whorE commenT,This is a whore comment,case_variation,True
+This is a whore comment,This is a whore comment,unicode,True
+This is a bitch comment,This is a bitch comment,original,True
+Th!$ 15 @ b17ch c0mm3n7,This is a bitch comment,leetspeak,True
+T h i s   i s   a   b i t c h   c o m m e n t ,This is a bitch comment,space_injection,True
+TTThhhiiss   iiisss   aaa   bbiiittcchh   ccooommmmmeenntt,This is a bitch comment,char_repetition,True
+T*h@i%s$ #i#s# @a$ @b$i@t@c*h% #c@o*m%m#e@n#t$,This is a bitch comment,special_chars,True
+thIs Is A BiTCh COMmENT,This is a bitch comment,case_variation,True
+This is a bitch comment,This is a bitch comment,unicode,True
+Thanks for sharing,Thanks for sharing,original,False
+Th@nk$ f0r 5h4r!ng,Thanks for sharing,leetspeak,False
+T h a n k s   f o r   s h a r i n g ,Thanks for sharing,space_injection,False
+TThhaaannnkkkss   fffoorrr   sshhaarrriinngg,Thanks for sharing,char_repetition,False
+T#h%a@n*k#s% *f*o*r% #s@h$a*r#i$n%g$,Thanks for sharing,special_chars,False
+THAnKS FoR sHARIng,Thanks for sharing,case_variation,False
+Thanks for sharing,Thanks for sharing,unicode,False
+Great work!,Great work!,original,False
+Gr347 w0rk!,Great work!,leetspeak,False
+G r e a t   w o r k ! ,Great work!,space_injection,False
+GGGrrreeeaatt  wwooorrrkk!!,Great work!,char_repetition,False
+G#r*e@a#t@ %w%o$r#k@!@,Great work!,special_chars,False
+GREAT wOrk!,Great work!,case_variation,False
+Great work!,Great work!,unicode,False
+This is a hate comment,This is a hate comment,original,True
+Th1$ 1$ 4 h473 c0mm3n7,This is a hate comment,leetspeak,True
+T h i s   i s   a   h a t e   c o m m e n t ,This is a hate comment,space_injection,True
+TTThhhiiisss  iiisss   aa   hhhaaatteee  cccooommmmmeennttt,This is a hate comment,char_repetition,True
+T@h#i*s% *i@s% *a@ $h%a$t*e% $c#o%m@m*e@n%t#,This is a hate comment,special_chars,True
+thIS IS a hATE COMMenT,This is a hate comment,case_variation,True
+This is a hate comment,This is a hate comment,unicode,True
+This is a cunt comment,This is a cunt comment,original,True
+Th1$ 1$ 4 cun7 c0mm3n7,This is a cunt comment,leetspeak,True
+T h i s   i s   a   c u n t   c o m m e n t ,This is a cunt comment,space_injection,True
+TTThhhiiss  iiisss  aaa  cccuuunnntt   cccooommmmmeeennnttt,This is a cunt comment,char_repetition,True
+T$h$i#s@ %i#s@ %a# $c#u$n%t* %c%o@m@m%e#n$t@,This is a cunt comment,special_chars,True
+This is a CUNt comMenT,This is a cunt comment,case_variation,True
+This is a cunt comment,This is a cunt comment,unicode,True
+This is a asshole comment,This is a asshole comment,original,True
+Th!$ !$ 4 @55h0l3 c0mm3n7,This is a asshole comment,leetspeak,True
+T h i s   i s   a   a s s h o l e   c o m m e n t ,This is a asshole comment,space_injection,True
+TTThhiiisss   iiisss   aaa   aassssshhhoollleee   cccoommmmmeeennnttt,This is a asshole comment,char_repetition,True
+T%h@i@s% *i#s% *a$ @a%s%s%h@o#l#e@ @c*o$m@m#e$n#t%,This is a asshole comment,special_chars,True
+thIs iS A ASshOle CommeNT,This is a asshole comment,case_variation,True
+This is a asshole comment,This is a asshole comment,unicode,True
+I like this post,I like this post,original,False
+I l!k3 7h1$ p0$7,I like this post,leetspeak,False
+I   l i k e   t h i s   p o s t ,I like this post,space_injection,False
+III  llliiikkkeee  ttthhhiiiss   pppooosstt,I like this post,char_repetition,False
+I% %l@i%k@e% @t$h@i*s$ @p#o#s*t#,I like this post,special_chars,False
+I LIkE THiS PosT,I like this post,case_variation,False
+I like this post,I like this post,unicode,False
+This is a stupid comment,This is a stupid comment,original,True
+Th1$ !$ 4 $7up!d c0mm3n7,This is a stupid comment,leetspeak,True
+T h i s   i s   a   s t u p i d   c o m m e n t ,This is a stupid comment,space_injection,True
+TThhiisss   iiss  aa  ssttuuupppiiiddd   ccooommmmmeeennttt,This is a stupid comment,char_repetition,True
+T%h*i#s% @i$s@ $a@ %s$t#u#p$i#d$ @c*o*m%m@e%n$t*,This is a stupid comment,special_chars,True
+ThIs iS A StupId ComMeNt,This is a stupid comment,case_variation,True
+This is a stupid comment,This is a stupid comment,unicode,True
+This is a retard comment,This is a retard comment,original,True
+Th!5 1$ 4 r374rd c0mm3n7,This is a retard comment,leetspeak,True
+T h i s   i s   a   r e t a r d   c o m m e n t ,This is a retard comment,space_injection,True
+TTThhhiiiss   iiss  aa   rrreeettaaarrrddd   cccooommmmmeeennttt,This is a retard comment,char_repetition,True
+T*h#i$s@ $i@s% @a$ *r@e#t%a*r%d@ #c*o@m@m%e@n*t#,This is a retard comment,special_chars,True
+thIS Is a rETArD coMmeNt,This is a retard comment,case_variation,True
+This is a retard comment,This is a retard comment,unicode,True
+This is a idiot comment,This is a idiot comment,original,True
+Th15 15 4 1d!07 c0mm3n7,This is a idiot comment,leetspeak,True
+T h i s   i s   a   i d i o t   c o m m e n t ,This is a idiot comment,space_injection,True
+TTThhhiiiss   iiisss  aa  iiiddiiiooott  cccooommmmmmeennnttt,This is a idiot comment,char_repetition,True
+T*h*i#s$ $i*s* #a@ *i*d$i%o#t@ $c@o%m$m$e$n@t$,This is a idiot comment,special_chars,True
+thIS IS a iDioT ComMent,This is a idiot comment,case_variation,True
+This is a idiot comment,This is a idiot comment,unicode,True
+Interesting perspective,Interesting perspective,original,False
+In73r3$7!ng p3r5p3c7!v3,Interesting perspective,leetspeak,False
+I n t e r e s t i n g   p e r s p e c t i v e ,Interesting perspective,space_injection,False
+IInntteeerreesstttiiinnngg  pppeerrssppeeeccctttiiivvveee,Interesting perspective,char_repetition,False
+I*n$t#e*r%e$s*t*i*n%g$ %p%e*r%s@p*e$c#t*i#v$e*,Interesting perspective,special_chars,False
+INTERestiNG PERSPeCtiVe,Interesting perspective,case_variation,False
+Interesting perspective,Interesting perspective,unicode,False
+This is a kill comment,This is a kill comment,original,True
+Th!5 !$ 4 k1ll c0mm3n7,This is a kill comment,leetspeak,True
+T h i s   i s   a   k i l l   c o m m e n t ,This is a kill comment,space_injection,True
+TThhiiiss   iisss  aaa  kkiiillll   ccooommmmmeennttt,This is a kill comment,char_repetition,True
+T*h$i*s* #i*s% #a# $k#i@l@l* *c*o@m#m@e#n$t$,This is a kill comment,special_chars,True
+tHiS is A KILL CommEnT,This is a kill comment,case_variation,True
+This is a kill comment,This is a kill comment,unicode,True
+This is a nigger comment,This is a nigger comment,original,True
+Th1$ !$ @ n!gg3r c0mm3n7,This is a nigger comment,leetspeak,True
+T h i s   i s   a   n i g g e r   c o m m e n t ,This is a nigger comment,space_injection,True
+TThhhiisss  iiiss  aa   nniiggggggeeerr   cccooommmmeeenntt,This is a nigger comment,char_repetition,True
+T$h@i#s$ $i@s@ $a% *n#i#g*g#e@r@ *c#o@m@m#e*n*t$,This is a nigger comment,special_chars,True
+ThIS Is A NIGgeR COmmENt,This is a nigger comment,case_variation,True
+This is a nigger comment,This is a nigger comment,unicode,True
+This is a shit comment,This is a shit comment,original,True
+Th!5 !$ 4 5h!7 c0mm3n7,This is a shit comment,leetspeak,True
+T h i s   i s   a   s h i t   c o m m e n t ,This is a shit comment,space_injection,True
+TTThhiisss   iiss  aa  ssshhiiitt  cccooommmmmeennntt,This is a shit comment,char_repetition,True
+T$h*i@s# *i%s# $a% *s#h@i#t@ *c*o%m*m#e*n$t%,This is a shit comment,special_chars,True
+This IS a sHIT comMeNt,This is a shit comment,case_variation,True
+This is a shit comment,This is a shit comment,unicode,True
+This is a bastard comment,This is a bastard comment,original,True
+Th1$ 15 4 b@$7@rd c0mm3n7,This is a bastard comment,leetspeak,True
+T h i s   i s   a   b a s t a r d   c o m m e n t ,This is a bastard comment,space_injection,True
+TThhhiisss  iisss  aaa   bbaassstttaarrddd   ccoommmmmeennntt,This is a bastard comment,char_repetition,True
+T#h*i@s# #i$s# @a@ #b$a@s%t%a$r@d# #c%o@m$m@e$n*t$,This is a bastard comment,special_chars,True
+thIS IS A bastArD ComMeNT,This is a bastard comment,case_variation,True
+This is a bastard comment,This is a bastard comment,unicode,True

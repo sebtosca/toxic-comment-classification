@@ -1,0 +1,11 @@
+text,is_obfuscated
+This is a normal comment.,False
+You are stupid and worthless.,False
+I hate you and your family.,False
+You should die in a fire.,False
+Your kind should be eliminated.,False
+Th1s 1s 4 n0rm4l c0mm3nt.,True
+Y o u  a r e  s t u p i d.,True
+I h8888 you and ur fam.,True
+Y0u $h0uld d13 1n 4 f1r3.,True
+Ur k1nd sh0uld b3 3l1m1n4t3d.,True
