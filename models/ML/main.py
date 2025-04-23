@@ -12,7 +12,7 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, f1_score, precision_recall_curve, make_scorer
+from sklearn.metrics import classification_report, f1_score, precision_recall_curve, make_scorer, roc_auc_score, precision_score, recall_score
 from sklearn.multioutput import MultiOutputClassifier
 from lightgbm import LGBMClassifier
 from skopt import BayesSearchCV
@@ -24,6 +24,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from joblib import dump
 from pathlib import Path
 import warnings
+import json
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent.parent
@@ -317,6 +318,28 @@ def main(data_path: str = None):
         np.save(models_path / "embeddings" / "X_bert_test.npy", X_bert)
         pd.DataFrame(Y, columns=label_names).to_csv(outputs_path / "results" / "Y_test.csv", index=False)
         dump(opt.best_estimator_, models_path / "saved" / "opt_model.joblib")
+        
+        # Save evaluation metrics
+        eval_metrics = {
+            'f1_macro': f1_score(Y, Y_pred_opt, average='macro'),
+            'f1_micro': f1_score(Y, Y_pred_opt, average='micro'),
+            'accuracy': np.mean(Y == Y_pred_opt),
+            'roc_auc_macro': np.mean([roc_auc_score(Y[:, i], Y_probs[:, i]) for i in range(Y.shape[1])]),
+            'per_label_metrics': {
+                label: {
+                    'f1': f1_score(Y[:, i], Y_pred_opt[:, i], average='binary'),
+                    'precision': precision_score(Y[:, i], Y_pred_opt[:, i], average='binary'),
+                    'recall': recall_score(Y[:, i], Y_pred_opt[:, i], average='binary'),
+                    'roc_auc': roc_auc_score(Y[:, i], Y_probs[:, i])
+                }
+                for i, label in enumerate(label_names)
+            }
+        }
+        
+        # Save metrics to JSON
+        with open(outputs_path / "results" / "eval_results.json", 'w') as f:
+            json.dump(eval_metrics, f, indent=4)
+        
         print("[INFO] Artifacts saved successfully.")
         
         return {

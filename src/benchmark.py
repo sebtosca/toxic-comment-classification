@@ -25,7 +25,7 @@ MODEL_PATH = PROJECT_ROOT / "models" / "saved" / "opt_model.joblib"
 TEST_DATA_PATH = PROJECT_ROOT / "data" / "raw" / "test.csv"
 TEST_LABELS_PATH = PROJECT_ROOT / "data" / "raw" / "test_labels.csv"
 BERT_EMBEDDINGS_PATH = PROJECT_ROOT / "data" / "processed" / "X_bert_test.npy"
-EVAL_RESULTS_PATH = PROJECT_ROOT / "eval_results.json"
+EVAL_RESULTS_PATH = PROJECT_ROOT / "outputs" / "results" / "eval_results.json"
 
 # Define label names and ensure they match the model's output
 label_names = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
