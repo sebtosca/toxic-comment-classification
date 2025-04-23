@@ -12,6 +12,17 @@ TOXIC_WORDS = [
     "asshole", "bitch", "bastard", "cunt", "whore", "slut", "nigger"
 ]
 
+# Define synonym mappings for word substitution
+SYNONYMS = {
+    'hate': ['despise', 'loathe', 'detest'],
+    'kill': ['murder', 'eliminate', 'destroy'],
+    'stupid': ['idiotic', 'foolish', 'dumb'],
+    'fuck': ['screw', 'damn', 'hell'],
+    'shit': ['crap', 'garbage', 'trash'],
+    'die': ['perish', 'expire', 'succumb'],
+    'cancer': ['disease', 'illness', 'malady']
+}
+
 # Define obfuscation patterns
 OBFUSCATION_PATTERNS = {
     'leetspeak': {
@@ -44,6 +55,22 @@ OBFUSCATION_PATTERNS = {
     'unicode': {
         'pattern': r'(.)',
         'replacement': lambda m: unicodedata.normalize('NFKC', m.group(1))
+    },
+    'word_substitution': {
+        'pattern': r'\b\w+\b',
+        'replacement': lambda m: random.choice(SYNONYMS.get(m.group(0).lower(), [m.group(0)]))
+    },
+    'character_swapping': {
+        'pattern': r'(\w)(\w)',
+        'replacement': lambda m: m.group(2) + m.group(1)
+    },
+    'emoji_injection': {
+        'pattern': r'(.)',
+        'replacement': lambda m: m.group(1) + random.choice(['😡', '🤬', '💩', '👎', '🤢'])
+    },
+    'zero_width': {
+        'pattern': r'(.)',
+        'replacement': lambda m: m.group(1) + '\u200B'  # Zero-width space
     }
 }
 
@@ -74,44 +101,134 @@ def generate_obfuscated_text(text: str, pattern_types: List[str] = None) -> Dict
             
     return obfuscated
 
-def create_test_set(num_samples: int = 100) -> pd.DataFrame:
+def create_test_set(num_samples: int = 500) -> pd.DataFrame:
     """Create a test set with various obfuscation patterns."""
     test_data = []
     
-    # Generate clean samples
-    clean_samples = [
+    # Define toxic examples for each class with more diversity
+    class_examples = {
+        'toxic': [
+            "This is a toxic comment",
+            "You are toxic and harmful",
+            "What a toxic thing to say",
+            "Your behavior is toxic",
+            "This environment is toxic",
+            "You're spreading toxicity",
+            "Your words are poisonous",
+            "This is toxic behavior"
+        ],
+        'severe_toxic': [
+            "You should die in a fire",
+            "I hope you get cancer",
+            "You deserve to be tortured",
+            "I wish you were dead",
+            "You should be eliminated",
+            "You're better off dead",
+            "The world would be better without you",
+            "You're a waste of oxygen"
+        ],
+        'obscene': [
+            "You are a fucking idiot",
+            "What a piece of shit",
+            "Go fuck yourself",
+            "You're a worthless piece of garbage",
+            "You're a disgusting human being",
+            "You're a fucking moron",
+            "What a fucking waste",
+            "You're a piece of trash"
+        ],
+        'threat': [
+            "I will kill you",
+            "You better watch your back",
+            "I'm coming for you",
+            "You're going to regret this",
+            "I'll make you pay for this",
+            "You're dead meat",
+            "I'll destroy you",
+            "You'll pay for this"
+        ],
+        'insult': [
+            "You are stupid",
+            "What a moron",
+            "You are worthless",
+            "You're an absolute idiot",
+            "You're completely incompetent",
+            "You're a fool",
+            "You're brainless",
+            "You're clueless"
+        ],
+        'identity_hate': [
+            "I hate all [group] people",
+            "[group] people are trash",
+            "All [group] should die",
+            "[group] people are inferior",
+            "[group] people don't belong here",
+            "[group] are subhuman",
+            "[group] are worthless",
+            "[group] should be eliminated"
+        ]
+    }
+    
+    # Generate balanced samples for each class
+    samples_per_class = num_samples // (len(class_examples) + 1)  # +1 for clean examples
+    
+    for class_name, examples in class_examples.items():
+        for _ in range(samples_per_class):
+            # Select a base example
+            base_text = random.choice(examples)
+            
+            # Generate multiple obfuscated versions
+            for _ in range(3):  # Generate 3 obfuscated versions per text
+                # Randomly select 2-3 obfuscation patterns
+                num_patterns = random.randint(2, 3)
+                selected_patterns = random.sample(list(OBFUSCATION_PATTERNS.keys()), num_patterns)
+                
+                # Apply patterns sequentially
+                obf_text = base_text
+                for pattern in selected_patterns:
+                    obf_text = apply_obfuscation(obf_text, pattern)
+                
+                # Add metadata
+                test_data.append({
+                    'text': obf_text,
+                    'original_text': base_text,
+                    'pattern': '+'.join(selected_patterns),
+                    'class': class_name,
+                    'is_toxic': 1,
+                    'confidence': random.uniform(0.7, 1.0),  # Add confidence score
+                    'obfuscation_level': len(selected_patterns)  # Track obfuscation complexity
+                })
+    
+    # Add clean (non-toxic) examples with more variety
+    clean_examples = [
         "This is a normal comment",
         "I like this post",
         "Great work!",
         "Thanks for sharing",
-        "Interesting perspective"
+        "Interesting perspective",
+        "I appreciate your input",
+        "This is helpful information",
+        "Good point!",
+        "I agree with you",
+        "Well said!",
+        "Thanks for the insight",
+        "This is valuable",
+        "I learned something new",
+        "Great perspective",
+        "Well explained"
     ]
     
-    # Generate toxic samples
-    toxic_samples = [
-        f"This is a {word} comment" for word in TOXIC_WORDS
-    ]
-    
-    # Combine and shuffle samples
-    all_samples = clean_samples + toxic_samples
-    random.shuffle(all_samples)
-    
-    # Generate obfuscated versions
-    for text in all_samples[:num_samples]:
-        try:
-            is_toxic = any(word in text.lower() for word in TOXIC_WORDS)
-            obfuscated = generate_obfuscated_text(text)
-            
-            for pattern, obf_text in obfuscated.items():
-                test_data.append({
-                    'text': obf_text,
-                    'original_text': text,
-                    'pattern': pattern,
-                    'is_toxic': is_toxic
-                })
-        except Exception as e:
-            print(f"Error processing text '{text}': {str(e)}")
-            continue
+    for _ in range(samples_per_class):
+        base_text = random.choice(clean_examples)
+        test_data.append({
+            'text': base_text,
+            'original_text': base_text,
+            'pattern': 'clean',
+            'class': 'clean',
+            'is_toxic': 0,
+            'confidence': random.uniform(0.8, 1.0),  # Higher confidence for clean examples
+            'obfuscation_level': 0  # No obfuscation for clean examples
+        })
     
     return pd.DataFrame(test_data)
 

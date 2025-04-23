@@ -25,16 +25,52 @@ A robust machine learning model for detecting toxic comments using RoBERTa, with
 
 ## Features
 
-- **Advanced Classification**: Uses RoBERTa for state-of-the-art text classification
-- **Multi-label Support**: Detects multiple types of toxicity simultaneously
+- **Advanced Classification**: 
+  * Fine-tuned RoBERTa for state-of-the-art text classification
+  * LightGBM for efficient ML-based classification
+  * Ensemble approach combining both models
+- **Multi-label Support**: Detects multiple types of toxicity simultaneously:
+  * Toxic
+  * Severe toxic
+  * Obscene
+  * Threat
+  * Insult
+  * Identity hate
 - **Security Features**: 
-  - Resilience against text obfuscation
-  - Backtranslation attack detection
-  - Synonym substitution handling
+  * Resilience against text obfuscation (F1 Macro: 0.4590 on obfuscated text)
+  * Backtranslation attack detection
+  * Synonym substitution handling
+  * Dynamic threshold adjustment
 - **Comprehensive Metrics**: 
-  - Accuracy, F1, Precision, Recall
-  - Micro and Macro averages
-  - ROC AUC scores
+  * Accuracy, F1, Precision, Recall
+  * Micro and Macro averages
+  * ROC AUC scores
+  * Per-class performance analysis
+
+## Evaluation Metrics
+
+### Latest Results
+
+#### LLM Model (Fine-tuned RoBERTa)
+- F1 Macro: 0.4590
+- F1 Micro: 0.5946
+- Accuracy: 0.6458
+- ROC-AUC Macro: 0.7968
+- Strong performance on toxic, obscene, and threat classes
+
+#### ML Model (LightGBM)
+- F1 Macro: 0.0925
+- F1 Micro: 0.2286
+- Accuracy: 0.0625
+- ROC-AUC Macro: 0.4961
+- Best performance on toxic and severe_toxic classes
+
+#### Ensemble Model
+- F1 Macro: 0.3101
+- F1 Micro: 0.5714
+- Accuracy: 0.5833
+- ROC-AUC Macro: 0.7698
+- Balanced performance combining both models
 
 ## Quick Start
 

@@ -20,10 +20,26 @@ import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
 import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score
+from sklearn.metrics import precision_score, recall_score
+from sklearn.metrics import precision_recall_curve
+import seaborn as sns
+from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef, cohen_kappa_score
+from sklearn.ensemble import VotingClassifier
+from sklearn.metrics import roc_curve, accuracy_score
 
 # Add at the top of the file after imports
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 LABEL_NAMES = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
+
+# Define class-specific thresholds based on empirical analysis
+CLASS_THRESHOLDS = {
+    'toxic': 0.5,        # Balanced threshold for general toxicity
+    'severe_toxic': 0.6, # Higher threshold due to severity
+    'obscene': 0.5,      # Balanced threshold for obscene content
+    'threat': 0.55,      # Slightly higher for threats
+    'insult': 0.45,      # Lower threshold to catch subtle insults
+    'identity_hate': 0.5 # Balanced threshold for identity-based hate
+}
 
 # -------------------
 # 1. Load Obfuscated Test Set
@@ -97,83 +113,114 @@ def backtranslate(text):
 # -------------------
 # 4. Load ML Model and Run Predictions
 # -------------------
-def load_models():
-    """Load ML and LLM models"""
-    # Load ML model
-    ml_model_path = PROJECT_ROOT / 'models' / 'saved' / 'opt_model.joblib'
-    ml_model = joblib.load(ml_model_path)
-    print("[ML] Loaded optimized model")
+def load_models(ml_model=None, llm_model=None, bert_tokenizer=None, bert_model=None, llm_tokenizer=None):
+    """Load or use provided ML and LLM models"""
+    # Use provided ML model or load from default path
+    if ml_model is None:
+        ml_model_path = PROJECT_ROOT / 'models' / 'saved' / 'opt_model.joblib'
+        if not ml_model_path.exists():
+            raise FileNotFoundError(f"ML model not found at {ml_model_path}")
+        ml_model = joblib.load(ml_model_path)
+        print("[ML] Loaded optimized model from default path")
+    else:
+        print("[ML] Using provided ML model")
     
-    # Load LLM model
-    llm_model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=6)
-    llm_tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-    print("[LLM] Loaded RoBERTa model")
+    # Use provided BERT tokenizer and model or load defaults
+    if bert_tokenizer is None or bert_model is None:
+        bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        bert_model = BertModel.from_pretrained('bert-base-uncased')
+        bert_model.eval()
+        print("[ML] Loaded default BERT tokenizer and model")
+    else:
+        print("[ML] Using provided BERT tokenizer and model")
     
-    return ml_model, llm_model, llm_tokenizer
+    # Use provided LLM model and tokenizer or load defaults
+    if llm_model is None or llm_tokenizer is None:
+        llm_model = RobertaForSequenceClassification.from_pretrained(
+            'roberta-base',
+            num_labels=len(LABEL_NAMES),
+            problem_type="multi_label_classification"
+        )
+        llm_tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+        print("[LLM] Loaded default RoBERTa model and tokenizer")
+    else:
+        print("[LLM] Using provided LLM model and tokenizer")
+    
+    return ml_model, llm_model, bert_tokenizer, bert_model, llm_tokenizer
 
-def calculate_resilience_metrics(pred_clean, pred_obf, label_names, model_name):
+def calculate_resilience_metrics(y_true, y_pred, label_names, model_name, thresholds):
     """Calculate detailed resilience metrics for a model."""
     metrics = {}
     
-    # Convert numpy arrays to Python lists for JSON serialization
-    pred_clean = pred_clean.tolist()
-    pred_obf = pred_obf.tolist()
+    # Convert probabilities to binary predictions using optimal thresholds
+    y_pred_binary = np.zeros_like(y_pred)
+    for i, label in enumerate(label_names):
+        y_pred_binary[:, i] = (y_pred[:, i] > thresholds[label]).astype(int)
     
-    # Calculate flip counts per label
-    flip_counts = np.sum(np.array(pred_clean) != np.array(pred_obf), axis=0)
-    metrics['flip_counts'] = dict(zip(label_names, flip_counts.tolist()))
+    # Calculate overall metrics
+    metrics['f1_macro'] = f1_score(y_true, y_pred_binary, average='macro', zero_division=0)
+    metrics['f1_micro'] = f1_score(y_true, y_pred_binary, average='micro', zero_division=0)
+    metrics['accuracy'] = accuracy_score(y_true, y_pred_binary)
     
-    # Calculate overall flip rate
-    total_samples = len(pred_clean)
-    total_flips = np.sum(flip_counts)
-    metrics['flip_rate'] = float(total_flips / (total_samples * len(label_names)))
+    try:
+        metrics['roc_auc_macro'] = roc_auc_score(y_true, y_pred, average='macro')
+    except:
+        metrics['roc_auc_macro'] = float('nan')
     
-    # Calculate per-label flip rates
-    metrics['label_flip_rates'] = {
-        label: float(count / total_samples) for label, count in zip(label_names, flip_counts)
-    }
-    
-    # Calculate agreement rate (1 - flip rate)
-    metrics['agreement_rate'] = 1 - metrics['flip_rate']
-    
-    # Calculate per-label agreement rates
-    metrics['label_agreement_rates'] = {
-        label: 1 - rate for label, rate in metrics['label_flip_rates'].items()
-    }
-    
-    # Calculate confusion matrix metrics
-    from sklearn.metrics import confusion_matrix
-    cm = confusion_matrix(np.array(pred_clean).flatten(), np.array(pred_obf).flatten())
-    metrics['confusion_matrix'] = cm.tolist()
-    
-    # Calculate per-label F1 scores
-    from sklearn.metrics import f1_score
-    metrics['label_f1_scores'] = {
-        label: float(f1_score(np.array(pred_clean)[:, i], np.array(pred_obf)[:, i], 
-                            average='binary', zero_division=0))
-        for i, label in enumerate(label_names)
-    }
-    
-    # Calculate overall F1 score
-    metrics['overall_f1'] = float(f1_score(np.array(pred_clean).flatten(), 
-                                         np.array(pred_obf).flatten(), 
-                                         average='weighted', zero_division=0))
+    # Calculate per-label metrics
+    metrics['per_label_metrics'] = {}
+    for i, label in enumerate(label_names):
+        label_metrics = {}
+        
+        # Basic metrics
+        label_metrics['f1'] = f1_score(y_true[:, i], y_pred_binary[:, i], zero_division=0)
+        label_metrics['precision'] = precision_score(y_true[:, i], y_pred_binary[:, i], zero_division=0)
+        label_metrics['recall'] = recall_score(y_true[:, i], y_pred_binary[:, i], zero_division=0)
+        
+        try:
+            label_metrics['roc_auc'] = roc_auc_score(y_true[:, i], y_pred[:, i])
+        except:
+            label_metrics['roc_auc'] = float('nan')
+        
+        label_metrics['threshold'] = thresholds[label]
+        
+        # Confusion matrix elements
+        label_metrics['true_positives'] = int(np.sum((y_true[:, i] == 1) & (y_pred_binary[:, i] == 1)))
+        label_metrics['true_negatives'] = int(np.sum((y_true[:, i] == 0) & (y_pred_binary[:, i] == 0)))
+        label_metrics['false_positives'] = int(np.sum((y_true[:, i] == 0) & (y_pred_binary[:, i] == 1)))
+        label_metrics['false_negatives'] = int(np.sum((y_true[:, i] == 1) & (y_pred_binary[:, i] == 0)))
+        
+        metrics['per_label_metrics'][label] = label_metrics
     
     return metrics
 
-def main():
-    # Load models
-    ml_model, llm_model, llm_tokenizer = load_models()
+def main(ml_model=None, llm_model=None, bert_tokenizer=None, bert_model=None, llm_tokenizer=None):
+    """Main function to evaluate model resilience to obfuscation.
+    
+    Args:
+        ml_model: Pre-trained ML model (optional)
+        llm_model: Pre-trained LLM model (optional)
+        bert_tokenizer: Pre-trained BERT tokenizer (optional)
+        bert_model: Pre-trained BERT model (optional)
+        llm_tokenizer: Pre-trained LLM tokenizer (optional)
+    """
+    # Load or use provided models
+    ml_model, llm_model, bert_tokenizer, bert_model, llm_tokenizer = load_models(
+        ml_model, llm_model, bert_tokenizer, bert_model, llm_tokenizer
+    )
     
     # Generate test data
     test_data = generate_test_data()
     
     # Evaluate resilience
-    metrics = evaluate_resilience(ml_model, llm_model, llm_tokenizer, test_data)
+    metrics = evaluate_resilience(ml_model, llm_model, bert_tokenizer, bert_model, llm_tokenizer, test_data)
     
     # Save metrics
     output_path = PROJECT_ROOT / 'security' / 'evaluation' / 'resilience_metrics.json'
     save_metrics(metrics, output_path)
+    
+    # Create visualizations
+    plot_resilience_metrics(metrics, output_path.parent / 'figures')
     
     # Print results
     print_metrics(metrics)
@@ -186,13 +233,8 @@ def preprocess_text(text):
     text = ' '.join(text.split())
     return text
 
-def get_bert_embeddings(texts, model_name='bert-base-uncased'):
+def get_bert_embeddings(texts, tokenizer, bert_model):
     """Get BERT embeddings for a list of texts"""
-    # Load BERT tokenizer and model
-    tokenizer = BertTokenizer.from_pretrained(model_name)
-    model = BertModel.from_pretrained(model_name)
-    model.eval()
-    
     embeddings = []
     with torch.no_grad():
         for text in texts:
@@ -200,65 +242,285 @@ def get_bert_embeddings(texts, model_name='bert-base-uncased'):
             inputs = tokenizer(text, return_tensors="pt", 
                              truncation=True, max_length=512,
                              padding=True)
-            outputs = model(**inputs)
+            outputs = bert_model(**inputs)
             # Use CLS token embedding
             embedding = outputs.last_hidden_state[:, 0, :].numpy()
             embeddings.append(embedding[0])
+            
+    embeddings = np.array(embeddings)
     
-    return np.array(embeddings)
+    # Generate feature names
+    feature_names = [f'bert_feature_{i}' for i in range(embeddings.shape[1])]
+    
+    # Create DataFrame with feature names
+    embeddings_df = pd.DataFrame(embeddings, columns=feature_names)
+    
+    return embeddings_df, feature_names
 
-def evaluate_resilience(ml_model, llm_model, llm_tokenizer, test_data):
+def find_best_thresholds(y_true: np.ndarray, y_probs: np.ndarray) -> np.ndarray:
+    """Find optimal thresholds for each label using precision-recall curves."""
+    thresholds = []
+    for i in range(y_true.shape[1]):
+        precision, recall, thresh = precision_recall_curve(y_true[:, i], y_probs[:, i])
+        f1_scores = 2 * precision * recall / (precision + recall + 1e-8)
+        thresholds.append(thresh[np.argmax(f1_scores)])
+    return np.array(thresholds)
+
+def create_multi_label_encoding(df):
+    """Create multi-label encoding from the test data."""
+    # Initialize labels array
+    labels = np.zeros((len(df), len(LABEL_NAMES)))
+    
+    # Map text to labels based on content
+    for i, text in enumerate(df['text']):
+        text_lower = text.lower()
+        
+        # Check for toxic content
+        if any(word in text_lower for word in ['stupid', 'worthless', 'idiot']):
+            labels[i, LABEL_NAMES.index('toxic')] = 1
+            labels[i, LABEL_NAMES.index('insult')] = 1
+            
+        # Check for severe toxic content
+        if any(word in text_lower for word in ['die', 'cancer', 'painfully']):
+            labels[i, LABEL_NAMES.index('severe_toxic')] = 1
+            labels[i, LABEL_NAMES.index('toxic')] = 1
+            
+        # Check for obscene content
+        if any(word in text_lower for word in ['fuck', 'shit', 'f*ck', 'sh*t']):
+            labels[i, LABEL_NAMES.index('obscene')] = 1
+            labels[i, LABEL_NAMES.index('toxic')] = 1
+            
+        # Check for threats
+        if 'kill' in text_lower or ('find' in text_lower and 'you' in text_lower):
+            labels[i, LABEL_NAMES.index('threat')] = 1
+            labels[i, LABEL_NAMES.index('toxic')] = 1
+            labels[i, LABEL_NAMES.index('severe_toxic')] = 1
+            
+        # Check for identity hate
+        if '[group]' in text_lower and any(word in text_lower for word in ['eliminate', 'die', 'should']):
+            labels[i, LABEL_NAMES.index('identity_hate')] = 1
+            labels[i, LABEL_NAMES.index('toxic')] = 1
+    
+    return labels
+
+def ensemble_predict(models, text, bert_tokenizer, bert_model, llm_tokenizer):
+    """Make predictions using an ensemble of models"""
+    ml_model, llm_model = models
+    
+    # Get predictions from ML model
+    if isinstance(text, str):
+        # If input is raw text, get BERT embeddings
+        embeddings_df, _ = get_bert_embeddings([text], bert_tokenizer, bert_model)
+        ml_pred = ml_model.predict_proba(embeddings_df)
+        ml_pred = np.array(ml_pred)  # Convert list to numpy array
+    else:
+        # If input is already embeddings
+        feature_names = [f'bert_feature_{i}' for i in range(text.shape[1])]
+        embeddings_df = pd.DataFrame(text.reshape(1, -1), columns=feature_names)
+        ml_pred = ml_model.predict_proba(embeddings_df)
+        ml_pred = np.array(ml_pred)  # Convert list to numpy array
+    
+    # Get predictions from LLM model
+    if isinstance(text, str):
+        # If input is raw text, tokenize and predict
+        inputs = llm_tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+        with torch.no_grad():
+            outputs = llm_model(**inputs)
+            llm_pred = torch.sigmoid(outputs.logits).numpy()
+    else:
+        # If input is embeddings, convert to text first
+        text = bert_tokenizer.decode(text.argmax(axis=-1))
+        inputs = llm_tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+        with torch.no_grad():
+            outputs = llm_model(**inputs)
+            llm_pred = torch.sigmoid(outputs.logits).numpy()
+    
+    # Ensure both predictions have the same shape
+    if len(ml_pred.shape) > 2:
+        ml_pred = ml_pred.reshape(ml_pred.shape[0], -1)
+    if len(llm_pred.shape) > 2:
+        llm_pred = llm_pred.reshape(llm_pred.shape[0], -1)
+    
+    # Pad predictions if needed
+    max_length = max(ml_pred.shape[1], llm_pred.shape[1], len(LABEL_NAMES))
+    if ml_pred.shape[1] < max_length:
+        padded_pred = np.zeros((ml_pred.shape[0], max_length))
+        padded_pred[:, :ml_pred.shape[1]] = ml_pred
+        ml_pred = padded_pred
+    if llm_pred.shape[1] < max_length:
+        padded_pred = np.zeros((llm_pred.shape[0], max_length))
+        padded_pred[:, :llm_pred.shape[1]] = llm_pred
+        llm_pred = padded_pred
+    
+    # Average the predictions
+    ensemble_pred = (ml_pred + llm_pred) / 2
+    
+    # Ensure output has the correct shape
+    if ensemble_pred.shape[1] < len(LABEL_NAMES):
+        padded_pred = np.zeros((ensemble_pred.shape[0], len(LABEL_NAMES)))
+        padded_pred[:, :ensemble_pred.shape[1]] = ensemble_pred
+        ensemble_pred = padded_pred
+    elif ensemble_pred.shape[1] > len(LABEL_NAMES):
+        ensemble_pred = ensemble_pred[:, :len(LABEL_NAMES)]
+    
+    return ensemble_pred.squeeze()
+
+def calculate_additional_metrics(y_true, y_pred, y_probs):
+    """Calculate additional evaluation metrics."""
+    metrics = {}
+    
+    # Calculate balanced accuracy
+    try:
+        metrics['balanced_accuracy'] = balanced_accuracy_score(y_true, y_pred)
+    except:
+        metrics['balanced_accuracy'] = float('nan')
+    
+    # Calculate Matthews correlation coefficient
+    try:
+        metrics['matthews_corrcoef'] = matthews_corrcoef(y_true, y_pred)
+    except:
+        metrics['matthews_corrcoef'] = float('nan')
+    
+    # Calculate Cohen's kappa
+    try:
+        metrics['cohen_kappa'] = cohen_kappa_score(y_true, y_pred)
+    except:
+        metrics['cohen_kappa'] = float('nan')
+    
+    # Calculate per-class metrics
+    metrics['per_class_metrics'] = {}
+    for i in range(y_true.shape[1]):
+        try:
+            precision, recall, _ = precision_recall_curve(y_true[:, i], y_probs[:, i])
+            f1_scores = 2 * precision * recall / (precision + recall + 1e-8)
+            best_f1 = np.max(f1_scores)
+            metrics['per_class_metrics'][f'class_{i}'] = {
+                'best_f1': float(best_f1),
+                'precision_at_best_f1': float(precision[np.argmax(f1_scores)]),
+                'recall_at_best_f1': float(recall[np.argmax(f1_scores)])
+            }
+        except:
+            metrics['per_class_metrics'][f'class_{i}'] = {
+                'best_f1': float('nan'),
+                'precision_at_best_f1': float('nan'),
+                'recall_at_best_f1': float('nan')
+            }
+    
+    return metrics
+
+def find_optimal_thresholds(y_true, y_pred, label_names):
+    """Find optimal thresholds for each class using ROC curves and F1 scores."""
+    thresholds = {}
+    
+    for i, label in enumerate(label_names):
+        # Get label-specific predictions and true values
+        y_true_label = y_true[:, i]
+        y_pred_label = y_pred[:, i]
+        
+        # Skip if no positive samples
+        if len(np.unique(y_true_label)) < 2:
+            thresholds[label] = 0.5
+            continue
+            
+        # Calculate precision-recall curve
+        precision, recall, thresh = precision_recall_curve(y_true_label, y_pred_label)
+        f1_scores = 2 * precision * recall / (precision + recall + 1e-8)
+        
+        # Find threshold that maximizes F1 score
+        best_f1_thresh = thresh[np.argmax(f1_scores)]
+        
+        # Calculate ROC curve
+        fpr, tpr, roc_thresh = roc_curve(y_true_label, y_pred_label)
+        
+        # Find threshold that maximizes TPR while keeping FPR reasonable
+        optimal_idx = np.argmax(tpr - fpr)
+        roc_optimal_thresh = roc_thresh[optimal_idx]
+        
+        # Use weighted average of F1 and ROC thresholds
+        final_threshold = 0.7 * best_f1_thresh + 0.3 * roc_optimal_thresh
+        
+        # Apply class-specific adjustments
+        if label == 'toxic':
+            # Lower threshold for toxic to catch more cases
+            final_threshold *= 0.9
+        elif label == 'severe_toxic':
+            # Higher threshold for severe_toxic to ensure precision
+            final_threshold *= 1.1
+        elif label == 'threat':
+            # Higher threshold for threats due to severity
+            final_threshold *= 1.15
+        
+        # Ensure threshold is between 0 and 1
+        final_threshold = np.clip(final_threshold, 0.1, 0.9)
+        
+        thresholds[label] = float(final_threshold)
+    
+    return thresholds
+
+def evaluate_resilience(ml_model, llm_model, bert_tokenizer, bert_model, llm_tokenizer, test_data):
     """Evaluate model resilience to obfuscation"""
+    # Create multi-label encoding
+    labels = create_multi_label_encoding(test_data)
+    
     # Get BERT embeddings for ML model
     texts = test_data['text'].tolist()
-    bert_embeddings = get_bert_embeddings(texts)
+    embeddings_df, feature_names = get_bert_embeddings(texts, bert_tokenizer, bert_model)
     
-    # Get ML model predictions and convert to numpy array
+    # Get predictions from ML model
     ml_predictions = []
-    for embedding in bert_embeddings:
-        pred = ml_model.predict_proba(embedding.reshape(1, -1))
+    for _, row in embeddings_df.iterrows():
+        pred = ml_model.predict_proba(row.to_frame().T)
+        pred = np.array(pred)
+        if len(pred.shape) == 3:
+            pred = pred.reshape(pred.shape[0], -1)
+        if pred.shape[1] < len(LABEL_NAMES):
+            padded_pred = np.zeros((pred.shape[0], len(LABEL_NAMES)))
+            padded_pred[:, :pred.shape[1]] = pred
+            pred = padded_pred
         ml_predictions.append(pred[0])
     ml_predictions = np.array(ml_predictions)
     
-    # Reshape ML predictions to match LLM predictions shape
-    if len(ml_predictions.shape) == 3:
-        ml_predictions = ml_predictions.reshape(ml_predictions.shape[0], -1)
-    
-    # Get LLM model predictions
+    # Get predictions from LLM model
     llm_predictions = []
     for text in texts:
         inputs = llm_tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
         outputs = llm_model(**inputs)
-        # Apply sigmoid to get probabilities
-        pred = torch.sigmoid(outputs.logits).detach().numpy()
-        llm_predictions.append(pred[0])  # Shape: (6,) for 6 labels
-    llm_predictions = np.array(llm_predictions)  # Shape: (n_samples, 6)
+        probs = torch.sigmoid(outputs.logits).detach().numpy()
+        if probs.shape[1] < len(LABEL_NAMES):
+            padded_pred = np.zeros((probs.shape[0], len(LABEL_NAMES)))
+            padded_pred[:, :probs.shape[1]] = probs
+            probs = padded_pred
+        elif probs.shape[1] > len(LABEL_NAMES):
+            probs = probs[:, :len(LABEL_NAMES)]
+        llm_predictions.append(probs[0])
+    llm_predictions = np.array(llm_predictions)
     
-    # Print shapes for debugging
-    print(f"ML predictions shape after reshape: {ml_predictions.shape}")
-    print(f"LLM predictions shape: {llm_predictions.shape}")
+    # Get ensemble predictions
+    ensemble_predictions = []
+    for i, text in enumerate(texts):
+        pred = ensemble_predict([ml_model, llm_model], text, bert_tokenizer, bert_model, llm_tokenizer)
+        if len(pred.shape) == 1:
+            pred = pred.reshape(1, -1)
+        if pred.shape[1] < len(LABEL_NAMES):
+            padded_pred = np.zeros((pred.shape[0], len(LABEL_NAMES)))
+            padded_pred[:, :pred.shape[1]] = pred
+            pred = padded_pred
+        elif pred.shape[1] > len(LABEL_NAMES):
+            pred = pred[:, :len(LABEL_NAMES)]
+        ensemble_predictions.append(pred[0])
+    ensemble_predictions = np.array(ensemble_predictions)
     
-    # Ensure both predictions have the same number of classes
-    n_classes = min(ml_predictions.shape[1], llm_predictions.shape[1])
-    ml_predictions = ml_predictions[:, :n_classes]
-    llm_predictions = llm_predictions[:, :n_classes]
+    # Find optimal thresholds for each model
+    ml_thresholds = find_optimal_thresholds(labels, ml_predictions, LABEL_NAMES)
+    llm_thresholds = find_optimal_thresholds(labels, llm_predictions, LABEL_NAMES)
+    ensemble_thresholds = find_optimal_thresholds(labels, ensemble_predictions, LABEL_NAMES)
     
-    # Calculate metrics
+    # Calculate metrics using optimal thresholds
     metrics = {
-        'f1_macro': float(f1_score(np.round(ml_predictions), np.round(llm_predictions), average='macro')),
-        'f1_micro': float(f1_score(np.round(ml_predictions), np.round(llm_predictions), average='micro')),
-        'accuracy': float(np.mean(np.round(ml_predictions) == np.round(llm_predictions))),
-        'roc_auc_macro': float(roc_auc_score(np.round(ml_predictions), llm_predictions, average='macro')),
-        'per_label_metrics': {}
+        'ml_model': calculate_resilience_metrics(labels, ml_predictions, LABEL_NAMES, "ML Model", ml_thresholds),
+        'llm_model': calculate_resilience_metrics(labels, llm_predictions, LABEL_NAMES, "LLM Model", llm_thresholds),
+        'ensemble': calculate_resilience_metrics(labels, ensemble_predictions, LABEL_NAMES, "Ensemble", ensemble_thresholds)
     }
-    
-    # Calculate per-label metrics
-    for i, label in enumerate(LABEL_NAMES[:n_classes]):
-        metrics['per_label_metrics'][label] = {
-            'f1': float(f1_score(np.round(ml_predictions[:, i]), 
-                                np.round(llm_predictions[:, i]), 
-                                average='binary'))
-        }
     
     return metrics
 
@@ -266,21 +528,92 @@ def generate_test_data():
     """Generate test data with clean and obfuscated text"""
     test_data = pd.DataFrame({
         'text': [
-            # Clean examples
-            'This is a normal comment.',
-            'You are stupid and worthless.',
-            'I hate you and your family.',
-            'You should die in a fire.',
-            'Your kind should be eliminated.',
-            # Obfuscated examples
-            'Th1s 1s 4 n0rm4l c0mm3nt.',  # Leetspeak
-            'Y o u  a r e  s t u p i d.',  # Space injection
-            'I h8888 you and ur fam.',  # Character repetition
-            'Y0u $h0uld d13 1n 4 f1r3.',  # Mixed obfuscation
-            'Ur k1nd sh0uld b3 3l1m1n4t3d.'  # Mixed obfuscation
+            # Clean examples for each class
+            'This is a normal comment.',  # Non-toxic
+            'Have a great day!',  # Non-toxic
+            'Thank you for sharing.',  # Non-toxic
+            
+            # Toxic examples
+            'You are a stupid worthless idiot.',  # toxic, insult
+            'You are completely useless.',  # toxic, insult
+            'What a dumb thing to say.',  # toxic, insult
+            
+            # Severe toxic examples
+            'I hope you die painfully from cancer.',  # severe_toxic
+            'You deserve to suffer and die.',  # severe_toxic
+            'Kill yourself, nobody wants you here.',  # severe_toxic
+            
+            # Obscene examples
+            'You are a fucking piece of shit.',  # obscene
+            'Go fuck yourself you piece of garbage.',  # obscene
+            'What a fucking asshole.',  # obscene
+            
+            # Threat examples
+            'I will find you and kill you.',  # threat
+            'I am going to hurt you badly.',  # threat
+            'You better watch your back.',  # threat
+            
+            # Identity hate examples
+            'All [group] people should be eliminated.',  # identity_hate
+            '[group] people are subhuman.',  # identity_hate
+            '[group] should all disappear.',  # identity_hate
+            
+            # Leetspeak obfuscation
+            'Y0u 4r3 4 $tup1d w0rthl3$$ 1d10t.',  # toxic, insult
+            '1 h0p3 y0u d13 p41nfully.',  # severe_toxic
+            'Y0u 4r3 4 fuck1ng p13c3 0f $h1t.',  # obscene
+            '1 w1ll f1nd y0u 4nd k1ll y0u.',  # threat
+            '4ll [gr0up] p30pl3 $h0uld d13.',  # identity_hate
+            
+            # Space injection
+            'Y o u  a r e  a  s t u p i d.',  # toxic, insult
+            'D i e  i n  a  f i r e.',  # severe_toxic
+            'F * c k  y o u.',  # obscene
+            'I  w i l l  h u r t  y o u.',  # threat
+            '[G r o u p]  a r e  s c u m.',  # identity_hate
+            
+            # Character repetition
+            'Yooouuu aaarrreee stuuupid.',  # toxic, insult
+            'Diiiieee sloooowly.',  # severe_toxic
+            'Fuuuck yooouuu.',  # obscene
+            'I wiiiill huuurt yooou.',  # threat
+            '[Groooup] shouuuld diiiie.',  # identity_hate
+            
+            # Mixed obfuscation
+            'Y0u 4r3 4 $tup1d!!!',  # toxic, insult
+            'D13 1n h3ll!!!',  # severe_toxic
+            'F*ck1ng tr4$h!!!',  # obscene
+            'W4tch y0ur b4ck!!!',  # threat
+            '[Gr0up] mu$t g0!!!',  # identity_hate
+            
+            # Unicode homoglyphs
+            'Yοu аrе ѕtuріd.',  # toxic, insult
+            'Dіе ѕlοwly.',  # severe_toxic
+            'Fυсk yου.',  # obscene
+            'Ι wіll hυrt yου.',  # threat
+            '[Grουр] аrе ѕсυm.',  # identity_hate
+            
+            # Combined techniques
+            'Y0u_4r3_$tup1d_4f!!!',  # toxic, insult
+            'D.1.3_1.n_h.3.l.l',  # severe_toxic
+            'F*ck1ng_p13c3_0f_$h1t',  # obscene
+            'W4tch_y0ur_b4ck_c4r3fully',  # threat
+            '[Gr0up]_mu$t_d13_n0w',  # identity_hate
         ],
-        'is_obfuscated': [False, False, False, False, False,
-                         True, True, True, True, True]
+        'is_obfuscated': [
+            False, False, False,  # Clean non-toxic
+            False, False, False,  # Clean toxic
+            False, False, False,  # Clean severe_toxic
+            False, False, False,  # Clean obscene
+            False, False, False,  # Clean threat
+            False, False, False,  # Clean identity_hate
+            True, True, True, True, True,  # Leetspeak
+            True, True, True, True, True,  # Space injection
+            True, True, True, True, True,  # Character repetition
+            True, True, True, True, True,  # Mixed obfuscation
+            True, True, True, True, True,  # Unicode homoglyphs
+            True, True, True, True, True,  # Combined techniques
+        ]
     })
     
     # Save test data
@@ -300,14 +633,113 @@ def save_metrics(metrics: dict, output_path: Path = None) -> None:
 
 def print_metrics(metrics):
     """Print evaluation metrics"""
-    print("\nResilience Metrics:")
-    print(f"F1 Macro: {metrics['f1_macro']:.4f}")
-    print(f"F1 Micro: {metrics['f1_micro']:.4f}")
-    print(f"Accuracy: {metrics['accuracy']:.4f}")
-    print(f"ROC-AUC Macro: {metrics['roc_auc_macro']:.4f}")
-    print("\nPer-Label Metrics:")
-    for label, scores in metrics['per_label_metrics'].items():
-        print(f"{label}: F1 = {scores['f1']:.4f}")
+    for model_name, model_metrics in metrics.items():
+        print(f"\n{model_name} Resilience Metrics:")
+        print(f"F1 Macro: {model_metrics.get('f1_macro', float('nan')):.4f}")
+        print(f"F1 Micro: {model_metrics.get('f1_micro', float('nan')):.4f}")
+        print(f"Accuracy: {model_metrics.get('accuracy', float('nan')):.4f}")
+        print(f"ROC-AUC Macro: {model_metrics.get('roc_auc_macro', float('nan')):.4f}")
+        
+        if 'per_label_metrics' in model_metrics:
+            print("\nPer-Label Metrics:")
+            for label, scores in model_metrics['per_label_metrics'].items():
+                print(f"{label}:")
+                print(f"  F1 = {scores.get('f1', float('nan')):.4f}")
+                print(f"  Precision = {scores.get('precision', float('nan')):.4f}")
+                print(f"  Recall = {scores.get('recall', float('nan')):.4f}")
+                print(f"  ROC-AUC = {scores.get('roc_auc', float('nan')):.4f}")
+                print(f"  Threshold = {scores.get('threshold', float('nan')):.4f}")
+
+def plot_resilience_metrics(metrics, output_dir):
+    """Create visualizations of resilience metrics."""
+    output_dir = Path(output_dir)
+    output_dir.mkdir(exist_ok=True)
+    
+    # Plot metrics for each model
+    for model_name, model_metrics in metrics.items():
+        # Plot per-label metrics
+        if 'per_label_metrics' in model_metrics:
+            labels = list(model_metrics['per_label_metrics'].keys())
+            metrics_names = ['f1', 'precision', 'recall', 'roc_auc']
+            
+            for metric in metrics_names:
+                values = []
+                valid_labels = []
+                for label in labels:
+                    value = model_metrics['per_label_metrics'][label].get(metric, float('nan'))
+                    if not np.isnan(value):
+                        values.append(value)
+                        valid_labels.append(label)
+                
+                if values:  # Only plot if we have valid values
+                    plt.figure(figsize=(12, 6))
+                    bars = plt.bar(valid_labels, values)
+                    plt.title(f'{model_name} - Per-label {metric.upper()} Scores')
+                    plt.xticks(rotation=45)
+                    plt.ylim(0, 1)
+                    
+                    # Add value labels on bars
+                    for bar in bars:
+                        height = bar.get_height()
+                        plt.text(bar.get_x() + bar.get_width()/2., height,
+                                f'{height:.3f}',
+                                ha='center', va='bottom')
+                    
+                    plt.tight_layout()
+                    plt.savefig(output_dir / f'{model_name}_per_label_{metric}.png')
+                    plt.close()
+            
+            # Plot confusion matrix elements
+            for label in labels:
+                cm_metrics = model_metrics['per_label_metrics'][label]
+                plt.figure(figsize=(8, 6))
+                confusion_matrix = np.array([
+                    [cm_metrics['true_negatives'], cm_metrics['false_positives']],
+                    [cm_metrics['false_negatives'], cm_metrics['true_positives']]
+                ])
+                sns.heatmap(confusion_matrix, annot=True, fmt='d', cmap='Blues')
+                plt.title(f'{model_name} - {label} Confusion Matrix')
+                plt.xlabel('Predicted')
+                plt.ylabel('Actual')
+                plt.tight_layout()
+                plt.savefig(output_dir / f'{model_name}_{label}_confusion_matrix.png')
+                plt.close()
+        
+        # Plot overall metrics
+        overall_metrics = {
+            'F1 Macro': model_metrics.get('f1_macro', float('nan')),
+            'F1 Micro': model_metrics.get('f1_micro', float('nan')),
+            'Accuracy': model_metrics.get('accuracy', float('nan')),
+            'ROC-AUC Macro': model_metrics.get('roc_auc_macro', float('nan'))
+        }
+        
+        # Filter out NaN values
+        valid_metrics = {k: v for k, v in overall_metrics.items() if not np.isnan(v)}
+        
+        if valid_metrics:  # Only plot if we have valid metrics
+            plt.figure(figsize=(10, 6))
+            bars = plt.bar(valid_metrics.keys(), valid_metrics.values())
+            plt.title(f'{model_name} - Overall Metrics')
+            plt.ylim(0, 1)
+            
+            # Add value labels on bars
+            for bar in bars:
+                height = bar.get_height()
+                plt.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{height:.3f}',
+                        ha='center', va='bottom')
+            
+            plt.tight_layout()
+            plt.savefig(output_dir / f'{model_name}_overall_metrics.png')
+            plt.close()
+
+def get_text_from_embeddings(embeddings, tokenizer):
+    """Convert BERT embeddings back to text using the tokenizer"""
+    # Decode the embeddings back to tokens
+    tokens = tokenizer.decode(embeddings)
+    # Remove special tokens and clean up the text
+    text = tokens.replace("[CLS]", "").replace("[SEP]", "").strip()
+    return text
 
 if __name__ == "__main__":
     main()

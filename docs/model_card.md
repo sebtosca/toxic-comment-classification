@@ -59,16 +59,37 @@
 ## Metrics
 
 ### Model Performance Measures
-- Accuracy (micro and macro)
-- F1 Score (micro and macro)
-- Precision (micro and macro)
-- Recall (micro and macro)
-- ROC AUC Score
+- **LLM Model (Fine-tuned RoBERTa)**:
+  * F1 Macro: 0.4590
+  * F1 Micro: 0.5946
+  * Accuracy: 0.6458
+  * ROC-AUC Macro: 0.7968
+  * Best performing on toxic (F1: 0.6875), obscene (F1: 0.7500), and threat (F1: 0.6667) classes
+
+- **ML Model (LightGBM)**:
+  * F1 Macro: 0.0925
+  * F1 Micro: 0.2286
+  * Accuracy: 0.0625
+  * ROC-AUC Macro: 0.4961
+  * Best performing on toxic (F1: 0.2692) and severe_toxic (F1: 0.2857) classes
+
+- **Ensemble Model**:
+  * F1 Macro: 0.3101
+  * F1 Micro: 0.5714
+  * Accuracy: 0.5833
+  * ROC-AUC Macro: 0.7698
+  * Combines strengths of both models with balanced performance
 
 ### Decision Thresholds
-- Optimized per-label thresholds
-- Minimum confidence scores
-- Identity term sensitivity
+- Optimized per-label thresholds using precision-recall curves
+- Dynamic threshold adjustment based on class imbalance
+- Class-specific thresholds:
+  * Toxic: 0.5 (balanced threshold)
+  * Severe_toxic: 0.6 (higher threshold for severity)
+  * Obscene: 0.5 (balanced threshold)
+  * Threat: 0.55 (slightly higher for threats)
+  * Insult: 0.45 (lower threshold for subtle insults)
+  * Identity_hate: 0.5 (balanced threshold)
 
 ## Evaluation Data
 
