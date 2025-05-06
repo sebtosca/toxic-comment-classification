@@ -28,14 +28,12 @@ identity_terms = [
 ]
 
 def find_best_thresholds(y_true: np.ndarray, y_probs: np.ndarray) -> np.ndarray:
-    """Find optimal thresholds for each label using precision-recall curves.
-    
-    Args:
-        y_true: True labels
-        y_probs: Predicted probabilities
-        
-    Returns:
-        Array of optimal thresholds
+    """Finds the best threshold for each class using F1 score on the PR curve.
+
+    y_true: binary ground truth matrix
+    y_probs: model output probabilities
+
+    returns: array of best thresholds (one per label)
     """
     thresholds = []
     for i in range(y_true.shape[1]):
@@ -52,20 +50,18 @@ def evaluate_model(
     label_names: List[str],
     output_dir: str = "outputs"
 ) -> Dict[str, Any]:
-    """Evaluate model performance and fairness.
-    
-    Args:
-        model: Trained model
-        X: Input features
-        y_true: True labels
-        df: DataFrame with original data
-        label_names: List of label names
-        output_dir: Directory to save outputs
-        
-    Returns:
-        Dictionary of evaluation metrics
+    """Runs evaluation and saves some metrics and fairness stuff.
+
+    model: trained classifier
+    X: feature matrix
+    y_true: true binary labels
+    df: original dataframe (needed for bias analysis)
+    label_names: list of target labels
+    output_dir: where to dump results
+
+    returns: dictionary with evaluation results
     """
-    # Create output directories
+    
     output_path = Path(output_dir)
     (output_path / "figures").mkdir(parents=True, exist_ok=True)
     (output_path / "results").mkdir(parents=True, exist_ok=True)
@@ -75,14 +71,14 @@ def evaluate_model(
         estimator.predict_proba(X)[:, 1] for estimator in model.estimators_
     ])
     
-    # Find optimal thresholds
+    # optimal thresholds
     best_thresholds = find_best_thresholds(y_true, y_probs)
     y_pred = (y_probs > best_thresholds).astype(int)
     
-    # Calculate metrics
+    
     metrics = {}
     
-    # Classification report
+    
     print("\nClassification Report:")
     print(classification_report(y_true, y_pred, target_names=label_names))
     
@@ -122,7 +118,7 @@ def evaluate_model(
     
     metrics['identity_f1'] = identity_f1
     
-    # Save metrics
+    # Saving metrics
     with open(output_path / "results" / "eval_results.json", 'w') as f:
         json.dump(metrics, f, indent=4)
     
@@ -160,7 +156,7 @@ def evaluate_model_old(df, Y, Y_probs, best_thresholds, label_names, model_path=
     np.save("outputs/X_bert_test.npy", Y_probs)
     pd.DataFrame(Y, columns=label_names).to_csv("outputs/Y_test.csv", index=False)
     
-    # Save model
+    # Saving model
     dump(model, model_path)
     print(f"[INFO] Model saved to {model_path}")
     

@@ -32,8 +32,8 @@ def test_has_identity_term():
         ("No identity terms here", 0),
         ("", 0),
         ("woman man", 1),
-        ("WOMAN", 1),  # Case insensitive
-        ("womann", 0),  # Not exact match
+        ("WOMAN", 1),  
+        ("womann", 0),  
     ]
     
     for text, expected in test_cases:
@@ -71,7 +71,7 @@ def test_preprocess_data():
         # Check output shapes
         assert len(df) == len(test_data)
         assert len(texts) == len(test_data)
-        assert labels.shape == (len(test_data), 6)  # 6 labels
+        assert labels.shape == (len(test_data), 6) 
         
         # Check text cleaning
         assert all(isinstance(text, str) for text in texts)
@@ -81,7 +81,7 @@ def test_preprocess_data():
         assert np.all((labels == 0) | (labels == 1))
         
     finally:
-        # Clean up
+        
         import os
         if os.path.exists('test_data.csv'):
             os.remove('test_data.csv')

@@ -1,4 +1,4 @@
-# Benchmarking Script: ML Model vs LLM Model (Enhanced for Publication)
+# Benchmarking: ML Model vs LLM Model
 
 import json
 import matplotlib.pyplot as plt
@@ -8,10 +8,10 @@ from datetime import datetime
 import numpy as np
 from scipy.stats import ttest_rel
 
-# Get project root path
+
 PROJECT_ROOT = Path(__file__).parent.parent
 
-# Define paths
+
 ML_RESULTS_PATH = PROJECT_ROOT / "outputs" / "results" / "eval_results.json"
 LLM_RESULTS_PATH = PROJECT_ROOT / "src" / "eval_results.json"
 RESULTS_DIR = PROJECT_ROOT / "outputs" / "results"
@@ -107,7 +107,7 @@ def plot_roc_auc_comparison(ml_results, llm_results):
     plt.title('Per-label ROC-AUC Score Comparison')
     plt.xticks(x, labels, rotation=45)
     plt.legend()
-    plt.ylim(0.9, 1.02)  # Set y-axis limits to better show differences
+    plt.ylim(0.9, 1.02)  
     plt.grid(True, axis='y', linestyle='--', alpha=0.7)
     plt.tight_layout()
     plt.savefig(RESULTS_DIR / "per_label_roc_auc_comparison.png")
@@ -162,13 +162,13 @@ def generate_html_report(rows, ml_results, llm_results):
 
 def main():
     try:
-        # Load existing results
+        # Load results
         ml_results, llm_results = load_results()
         
         # Compare results
         rows = summarize_comparison(ml_results, llm_results)
         
-        # Create visualizations
+        # Create visuals
         plot_per_label_comparison(ml_results, llm_results)
         plot_roc_auc_comparison(ml_results, llm_results)
         

@@ -1,14 +1,15 @@
-"""Configuration and logging setup for the ML module."""
+"""Basic config + logging stuff for this ML thing."""
+
 
 import logging
 from pathlib import Path
 import sys
 
-# Create logs directory if it doesn't exist
+
 LOGS_DIR = Path("logs")
 LOGS_DIR.mkdir(exist_ok=True)
 
-# Configure logging
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -18,10 +19,9 @@ logging.basicConfig(
     ]
 )
 
-# Create logger
 logger = logging.getLogger("toxic_classification")
 
-# Model configuration
+
 MODEL_CONFIG = {
     "bert_model": "bert-base-uncased",
     "max_length": 128,
@@ -31,7 +31,6 @@ MODEL_CONFIG = {
     "test_size": 0.2
 }
 
-# Label configuration
 LABEL_NAMES = [
     "toxic",
     "severe_toxic",
@@ -41,7 +40,6 @@ LABEL_NAMES = [
     "identity_hate"
 ]
 
-# Path configuration
 PATHS = {
     "data": Path("data"),
     "models": Path("models/ML"),
@@ -49,6 +47,5 @@ PATHS = {
     "outputs": Path("outputs")
 }
 
-# Create necessary directories
 for path in PATHS.values():
     path.mkdir(parents=True, exist_ok=True) 

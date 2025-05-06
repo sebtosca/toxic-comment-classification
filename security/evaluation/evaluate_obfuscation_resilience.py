@@ -1,5 +1,3 @@
-# evaluate_obfuscation_resilience.py
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,11 +25,11 @@ from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef, cohen_ka
 from sklearn.ensemble import VotingClassifier
 from sklearn.metrics import roc_curve, accuracy_score
 
-# Add at the top of the file after imports
+
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 LABEL_NAMES = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 
-# Define class-specific thresholds based on empirical analysis
+# Thresholds for the classes
 CLASS_THRESHOLDS = {
     'toxic': 0.5,        # Balanced threshold for general toxicity
     'severe_toxic': 0.6, # Higher threshold due to severity
@@ -121,20 +119,20 @@ def load_models(ml_model=None, llm_model=None, bert_tokenizer=None, bert_model=N
         if not ml_model_path.exists():
             raise FileNotFoundError(f"ML model not found at {ml_model_path}")
         ml_model = joblib.load(ml_model_path)
-        print("[ML] Loaded optimized model from default path")
+        print("Loaded optimized ML model from default path")
     else:
-        print("[ML] Using provided ML model")
+        print("Using provided ML model")
     
-    # Use provided BERT tokenizer and model or load defaults
+    # Using my ML model 
     if bert_tokenizer is None or bert_model is None:
         bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         bert_model = BertModel.from_pretrained('bert-base-uncased')
         bert_model.eval()
-        print("[ML] Loaded default BERT tokenizer and model")
+        print("Loaded default BERT tokenizer and ML model")
     else:
-        print("[ML] Using provided BERT tokenizer and model")
+        print("Using provided BERT tokenizer and ML model")
     
-    # Use provided LLM model and tokenizer or load defaults
+    # Using my LLM model
     if llm_model is None or llm_tokenizer is None:
         llm_model = RobertaForSequenceClassification.from_pretrained(
             'roberta-base',
@@ -142,9 +140,9 @@ def load_models(ml_model=None, llm_model=None, bert_tokenizer=None, bert_model=N
             problem_type="multi_label_classification"
         )
         llm_tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-        print("[LLM] Loaded default RoBERTa model and tokenizer")
+        print("Loaded default RoBERTa model and tokenizer")
     else:
-        print("[LLM] Using provided LLM model and tokenizer")
+        print("Using provided LLM model and tokenizer")
     
     return ml_model, llm_model, bert_tokenizer, bert_model, llm_tokenizer
 
@@ -204,22 +202,22 @@ def main(ml_model=None, llm_model=None, bert_tokenizer=None, bert_model=None, ll
         bert_model: Pre-trained BERT model (optional)
         llm_tokenizer: Pre-trained LLM tokenizer (optional)
     """
-    # Load or use provided models
+    # Loading the models
     ml_model, llm_model, bert_tokenizer, bert_model, llm_tokenizer = load_models(
         ml_model, llm_model, bert_tokenizer, bert_model, llm_tokenizer
     )
     
-    # Generate test data
+    # Generating test data
     test_data = generate_test_data()
     
-    # Evaluate resilience
+    # Evaluating resilience
     metrics = evaluate_resilience(ml_model, llm_model, bert_tokenizer, bert_model, llm_tokenizer, test_data)
     
-    # Save metrics
+    # Saving metrics
     output_path = PROJECT_ROOT / 'security' / 'evaluation' / 'resilience_metrics.json'
     save_metrics(metrics, output_path)
     
-    # Create visualizations
+    # Creating visuals
     plot_resilience_metrics(metrics, output_path.parent / 'figures')
     
     # Print results
@@ -227,9 +225,9 @@ def main(ml_model=None, llm_model=None, bert_tokenizer=None, bert_model=None, ll
 
 def preprocess_text(text):
     """Basic text preprocessing"""
-    # Convert to lowercase
+    # lowercasing text
     text = text.lower()
-    # Remove special characters and extra whitespace
+    # Remove special characters and space
     text = ' '.join(text.split())
     return text
 
@@ -243,16 +241,16 @@ def get_bert_embeddings(texts, tokenizer, bert_model):
                              truncation=True, max_length=512,
                              padding=True)
             outputs = bert_model(**inputs)
-            # Use CLS token embedding
+            
             embedding = outputs.last_hidden_state[:, 0, :].numpy()
             embeddings.append(embedding[0])
             
     embeddings = np.array(embeddings)
     
-    # Generate feature names
+    
     feature_names = [f'bert_feature_{i}' for i in range(embeddings.shape[1])]
     
-    # Create DataFrame with feature names
+    # Putting the embeddings in a dataframe
     embeddings_df = pd.DataFrame(embeddings, columns=feature_names)
     
     return embeddings_df, feature_names
@@ -307,14 +305,14 @@ def ensemble_predict(models, text, bert_tokenizer, bert_model, llm_tokenizer):
     """Make predictions using an ensemble of models"""
     ml_model, llm_model = models
     
-    # Get predictions from ML model
+    # Precitions from ML model
     if isinstance(text, str):
-        # If input is raw text, get BERT embeddings
+        
         embeddings_df, _ = get_bert_embeddings([text], bert_tokenizer, bert_model)
         ml_pred = ml_model.predict_proba(embeddings_df)
-        ml_pred = np.array(ml_pred)  # Convert list to numpy array
+        ml_pred = np.array(ml_pred) 
     else:
-        # If input is already embeddings
+        
         feature_names = [f'bert_feature_{i}' for i in range(text.shape[1])]
         embeddings_df = pd.DataFrame(text.reshape(1, -1), columns=feature_names)
         ml_pred = ml_model.predict_proba(embeddings_df)
@@ -322,13 +320,13 @@ def ensemble_predict(models, text, bert_tokenizer, bert_model, llm_tokenizer):
     
     # Get predictions from LLM model
     if isinstance(text, str):
-        # If input is raw text, tokenize and predict
+        
         inputs = llm_tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
         with torch.no_grad():
             outputs = llm_model(**inputs)
             llm_pred = torch.sigmoid(outputs.logits).numpy()
     else:
-        # If input is embeddings, convert to text first
+        
         text = bert_tokenizer.decode(text.argmax(axis=-1))
         inputs = llm_tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
         with torch.no_grad():
@@ -441,13 +439,13 @@ def find_optimal_thresholds(y_true, y_pred, label_names):
         
         # Apply class-specific adjustments
         if label == 'toxic':
-            # Lower threshold for toxic to catch more cases
+            
             final_threshold *= 0.9
         elif label == 'severe_toxic':
-            # Higher threshold for severe_toxic to ensure precision
+            
             final_threshold *= 1.1
         elif label == 'threat':
-            # Higher threshold for threats due to severity
+            
             final_threshold *= 1.15
         
         # Ensure threshold is between 0 and 1
@@ -529,90 +527,90 @@ def generate_test_data():
     test_data = pd.DataFrame({
         'text': [
             # Clean examples for each class
-            'This is a normal comment.',  # Non-toxic
-            'Have a great day!',  # Non-toxic
-            'Thank you for sharing.',  # Non-toxic
+            'This is a normal comment.',  
+            'Have a great day!',  
+            'Thank you for sharing.',  
             
             # Toxic examples
-            'You are a stupid worthless idiot.',  # toxic, insult
-            'You are completely useless.',  # toxic, insult
-            'What a dumb thing to say.',  # toxic, insult
+            'You are a stupid worthless idiot.',  
+            'You are completely useless.',  
+            'What a dumb thing to say.',  
             
             # Severe toxic examples
-            'I hope you die painfully from cancer.',  # severe_toxic
-            'You deserve to suffer and die.',  # severe_toxic
-            'Kill yourself, nobody wants you here.',  # severe_toxic
+            'I hope you die painfully from cancer.',  
+            'You deserve to suffer and die.',  
+            'Kill yourself, nobody wants you here.',  
             
             # Obscene examples
-            'You are a fucking piece of shit.',  # obscene
-            'Go fuck yourself you piece of garbage.',  # obscene
-            'What a fucking asshole.',  # obscene
+            'You are a fucking piece of shit.',  
+            'Go fuck yourself you piece of garbage.',  
+            'What a fucking asshole.',  
             
             # Threat examples
-            'I will find you and kill you.',  # threat
-            'I am going to hurt you badly.',  # threat
-            'You better watch your back.',  # threat
+            'I will find you and kill you.',  
+            'I am going to hurt you badly.', 
+            'You better watch your back.',  
             
             # Identity hate examples
-            'All [group] people should be eliminated.',  # identity_hate
-            '[group] people are subhuman.',  # identity_hate
-            '[group] should all disappear.',  # identity_hate
+            'All [group] people should be eliminated.',  
+            '[group] people are subhuman.',  
+            '[group] should all disappear.',  
             
             # Leetspeak obfuscation
-            'Y0u 4r3 4 $tup1d w0rthl3$$ 1d10t.',  # toxic, insult
-            '1 h0p3 y0u d13 p41nfully.',  # severe_toxic
-            'Y0u 4r3 4 fuck1ng p13c3 0f $h1t.',  # obscene
-            '1 w1ll f1nd y0u 4nd k1ll y0u.',  # threat
-            '4ll [gr0up] p30pl3 $h0uld d13.',  # identity_hate
+            'Y0u 4r3 4 $tup1d w0rthl3$$ 1d10t.',  
+            '1 h0p3 y0u d13 p41nfully.',  
+            'Y0u 4r3 4 fuck1ng p13c3 0f $h1t.',  
+            '1 w1ll f1nd y0u 4nd k1ll y0u.',  
+            '4ll [gr0up] p30pl3 $h0uld d13.',  
             
-            # Space injection
-            'Y o u  a r e  a  s t u p i d.',  # toxic, insult
-            'D i e  i n  a  f i r e.',  # severe_toxic
-            'F * c k  y o u.',  # obscene
-            'I  w i l l  h u r t  y o u.',  # threat
-            '[G r o u p]  a r e  s c u m.',  # identity_hate
+            # Space injection. lol mind the language 
+            'Y o u  a r e  a  s t u p i d.',  
+            'D i e  i n  a  f i r e.',  
+            'F * c k  y o u.', 
+            'I  w i l l  h u r t  y o u.', 
+            '[G r o u p]  a r e  s c u m.',
             
             # Character repetition
-            'Yooouuu aaarrreee stuuupid.',  # toxic, insult
-            'Diiiieee sloooowly.',  # severe_toxic
-            'Fuuuck yooouuu.',  # obscene
-            'I wiiiill huuurt yooou.',  # threat
-            '[Groooup] shouuuld diiiie.',  # identity_hate
+            'Yooouuu aaarrreee stuuupid.',  
+            'Diiiieee sloooowly.',  
+            'Fuuuck yooouuu.',  
+            'I wiiiill huuurt yooou.',  
+            '[Groooup] shouuuld diiiie.',  
             
             # Mixed obfuscation
-            'Y0u 4r3 4 $tup1d!!!',  # toxic, insult
-            'D13 1n h3ll!!!',  # severe_toxic
-            'F*ck1ng tr4$h!!!',  # obscene
-            'W4tch y0ur b4ck!!!',  # threat
-            '[Gr0up] mu$t g0!!!',  # identity_hate
+            'Y0u 4r3 4 $tup1d!!!',  
+            'D13 1n h3ll!!!',  
+            'F*ck1ng tr4$h!!!',  
+            'W4tch y0ur b4ck!!!', 
+            '[Gr0up] mu$t g0!!!',  
             
             # Unicode homoglyphs
-            'Yοu аrе ѕtuріd.',  # toxic, insult
-            'Dіе ѕlοwly.',  # severe_toxic
-            'Fυсk yου.',  # obscene
-            'Ι wіll hυrt yου.',  # threat
-            '[Grουр] аrе ѕсυm.',  # identity_hate
+            'Yοu аrе ѕtuріd.',  
+            'Dіе ѕlοwly.',  
+            'Fυсk yου.',  
+            'Ι wіll hυrt yου.',  
+            '[Grουр] аrе ѕсυm.',  
             
             # Combined techniques
-            'Y0u_4r3_$tup1d_4f!!!',  # toxic, insult
-            'D.1.3_1.n_h.3.l.l',  # severe_toxic
-            'F*ck1ng_p13c3_0f_$h1t',  # obscene
-            'W4tch_y0ur_b4ck_c4r3fully',  # threat
-            '[Gr0up]_mu$t_d13_n0w',  # identity_hate
+            'Y0u_4r3_$tup1d_4f!!!',  
+            'D.1.3_1.n_h.3.l.l',  
+            'F*ck1ng_p13c3_0f_$h1t',  
+            'W4tch_y0ur_b4ck_c4r3fully',  
+            '[Gr0up]_mu$t_d13_n0w',  
         ],
         'is_obfuscated': [
-            False, False, False,  # Clean non-toxic
-            False, False, False,  # Clean toxic
-            False, False, False,  # Clean severe_toxic
-            False, False, False,  # Clean obscene
-            False, False, False,  # Clean threat
-            False, False, False,  # Clean identity_hate
-            True, True, True, True, True,  # Leetspeak
-            True, True, True, True, True,  # Space injection
-            True, True, True, True, True,  # Character repetition
-            True, True, True, True, True,  # Mixed obfuscation
-            True, True, True, True, True,  # Unicode homoglyphs
-            True, True, True, True, True,  # Combined techniques
+            False, False, False,  
+            False, False, False,  
+            False, False, False,  
+            False, False, False,  
+            False, False, False,  
+            False, False, False,  
+            True, True, True, True, True,  
+            True, True, True, True, True,  
+            True, True, True, True, True,  
+            True, True, True, True, True,  
+            True, True, True, True, True,  
+            True, True, True, True, True,  
         ]
     })
     
@@ -671,7 +669,7 @@ def plot_resilience_metrics(metrics, output_dir):
                         values.append(value)
                         valid_labels.append(label)
                 
-                if values:  # Only plot if we have valid values
+                if values: 
                     plt.figure(figsize=(12, 6))
                     bars = plt.bar(valid_labels, values)
                     plt.title(f'{model_name} - Per-label {metric.upper()} Scores')
@@ -716,7 +714,7 @@ def plot_resilience_metrics(metrics, output_dir):
         # Filter out NaN values
         valid_metrics = {k: v for k, v in overall_metrics.items() if not np.isnan(v)}
         
-        if valid_metrics:  # Only plot if we have valid metrics
+        if valid_metrics:  
             plt.figure(figsize=(10, 6))
             bars = plt.bar(valid_metrics.keys(), valid_metrics.values())
             plt.title(f'{model_name} - Overall Metrics')
@@ -735,7 +733,7 @@ def plot_resilience_metrics(metrics, output_dir):
 
 def get_text_from_embeddings(embeddings, tokenizer):
     """Convert BERT embeddings back to text using the tokenizer"""
-    # Decode the embeddings back to tokens
+    # Decoding tokens back to text
     tokens = tokenizer.decode(embeddings)
     # Remove special tokens and clean up the text
     text = tokens.replace("[CLS]", "").replace("[SEP]", "").strip()

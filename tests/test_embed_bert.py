@@ -21,13 +21,13 @@ def test_get_bert_embeddings():
     # Check output type and shape
     assert isinstance(embeddings, np.ndarray)
     assert embeddings.shape[0] == len(test_texts)
-    assert embeddings.shape[1] == 768  # BERT base hidden size
+    assert embeddings.shape[1] == 768  
     
     # Check for NaN values
     assert not np.isnan(embeddings).any()
     
     # Check embedding values are reasonable
-    assert np.all(np.abs(embeddings) < 10)  # BERT embeddings are usually small
+    assert np.all(np.abs(embeddings) < 10)
     
     # Check different length inputs
     embeddings_short = get_bert_embeddings(["Short"])

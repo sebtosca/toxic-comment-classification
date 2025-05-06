@@ -36,7 +36,7 @@ def test_full_pipeline():
         assert len(texts) == len(test_data)
         assert labels.shape == (len(test_data), 6)
         assert 'has_identity' in df.columns
-        assert df['has_identity'].sum() > 0  # At least one comment has identity terms
+        assert df['has_identity'].sum() > 0  
         
         # Test BERT embeddings
         embeddings = get_bert_embeddings(texts)
@@ -44,12 +44,12 @@ def test_full_pipeline():
         # Verify embeddings
         assert isinstance(embeddings, np.ndarray)
         assert embeddings.shape[0] == len(texts)
-        assert embeddings.shape[1] == 768  # BERT base hidden size
+        assert embeddings.shape[1] == 768  
         assert not np.isnan(embeddings).any()
-        assert np.all(np.abs(embeddings) < 10)  # Reasonable embedding values
+        assert np.all(np.abs(embeddings) < 10) 
         
     finally:
-        # Clean up
+        
         import os
         if os.path.exists('test_pipeline.csv'):
             os.remove('test_pipeline.csv')

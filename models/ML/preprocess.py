@@ -9,16 +9,16 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from typing import Tuple, List
 
-# Download required NLTK data
+# Downloads
 nltk.download('stopwords', quiet=True)
 nltk.download('wordnet', quiet=True)
 nltk.download('omw-1.4', quiet=True)
 
-# Initialize NLTK components
+# NLTK
 stop_words = set(stopwords.words('english'))
 lemmatizer = WordNetLemmatizer()
 
-# Define identity terms
+
 identity_terms = [
     "muslim", "christian", "jewish", "black", "white", "asian",
     "latino", "gay", "lesbian", "trans", "female", "male",
@@ -82,7 +82,7 @@ def preprocess_data(data_path: str) -> Tuple[pd.DataFrame, List[str], np.ndarray
     effectiveness = calculate_cleaning_effectiveness(df['comment_text'], df['clean_comment'])
     print(f"\n Text reduction due to cleaning: {effectiveness}%\n")
 
-    # Optional: Show a few cleaned samples
+    
     print("🔍 Sample cleaned comments:")
     print(df[['comment_text', 'clean_comment']].sample(3, random_state=42).to_string(index=False))
 
@@ -92,7 +92,6 @@ def preprocess_data(data_path: str) -> Tuple[pd.DataFrame, List[str], np.ndarray
     
     return df, texts, labels, effectiveness
 
-# Entry point for terminal execution
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:

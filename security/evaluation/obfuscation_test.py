@@ -70,7 +70,7 @@ OBFUSCATION_PATTERNS = {
     },
     'zero_width': {
         'pattern': r'(.)',
-        'replacement': lambda m: m.group(1) + '\u200B'  # Zero-width space
+        'replacement': lambda m: m.group(1) + '\u200B' 
     }
 }
 
@@ -105,7 +105,7 @@ def create_test_set(num_samples: int = 500) -> pd.DataFrame:
     """Create a test set with various obfuscation patterns."""
     test_data = []
     
-    # Define toxic examples for each class with more diversity
+    # Defining diverse toxic examples for each class
     class_examples = {
         'toxic': [
             "This is a toxic comment",
@@ -170,7 +170,7 @@ def create_test_set(num_samples: int = 500) -> pd.DataFrame:
     }
     
     # Generate balanced samples for each class
-    samples_per_class = num_samples // (len(class_examples) + 1)  # +1 for clean examples
+    samples_per_class = num_samples // (len(class_examples) + 1)  
     
     for class_name, examples in class_examples.items():
         for _ in range(samples_per_class):
@@ -178,17 +178,17 @@ def create_test_set(num_samples: int = 500) -> pd.DataFrame:
             base_text = random.choice(examples)
             
             # Generate multiple obfuscated versions
-            for _ in range(3):  # Generate 3 obfuscated versions per text
+            for _ in range(3):  
                 # Randomly select 2-3 obfuscation patterns
                 num_patterns = random.randint(2, 3)
                 selected_patterns = random.sample(list(OBFUSCATION_PATTERNS.keys()), num_patterns)
                 
-                # Apply patterns sequentially
+                
                 obf_text = base_text
                 for pattern in selected_patterns:
                     obf_text = apply_obfuscation(obf_text, pattern)
                 
-                # Add metadata
+                # Metadata
                 test_data.append({
                     'text': obf_text,
                     'original_text': base_text,
@@ -199,7 +199,7 @@ def create_test_set(num_samples: int = 500) -> pd.DataFrame:
                     'obfuscation_level': len(selected_patterns)  # Track obfuscation complexity
                 })
     
-    # Add clean (non-toxic) examples with more variety
+    # Adding clean (non-toxic) examples with more variety
     clean_examples = [
         "This is a normal comment",
         "I like this post",
@@ -226,8 +226,8 @@ def create_test_set(num_samples: int = 500) -> pd.DataFrame:
             'pattern': 'clean',
             'class': 'clean',
             'is_toxic': 0,
-            'confidence': random.uniform(0.8, 1.0),  # Higher confidence for clean examples
-            'obfuscation_level': 0  # No obfuscation for clean examples
+            'confidence': random.uniform(0.8, 1.0),  
+            'obfuscation_level': 0  
         })
     
     return pd.DataFrame(test_data)

@@ -75,7 +75,7 @@ def clean_text(text):
     text = re.sub(r"'ve", " have", text)
     text = re.sub(r"'m", " am", text)
 
-    # Remove emojis and special characters (keep alphanum and basic punctuation)
+    # Remove emojis and special characters
     text = re.sub(r"[^a-zA-Z0-9\s.,!?']", " ", text)
 
     # Replace repeated punctuation
@@ -126,7 +126,7 @@ class RobertaForWeightedMultiLabel(RobertaForSequenceClassification):
         self.pos_weight = pos_weight
 
     def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):
-        kwargs.pop("num_items_in_batch", None)  # Handle Trainer-injected arg
+        kwargs.pop("num_items_in_batch", None)  
         output = super().forward(input_ids=input_ids, attention_mask=attention_mask, labels=None, **kwargs)
         logits = output.logits
         loss = None

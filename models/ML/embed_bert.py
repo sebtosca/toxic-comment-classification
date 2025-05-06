@@ -7,14 +7,12 @@ import numpy as np
 import warnings
 
 def get_bert_embeddings(texts: List[str], batch_size: int = 32) -> np.ndarray:
-    """Generate BERT embeddings for a list of texts.
+    """Get sentence embeddings using BERT (average over tokens).
     
-    Args:
-        texts: List of input texts
-        batch_size: Batch size for processing
-        
-    Returns:
-        Numpy array of BERT embeddings
+    texts: list of strings
+    batch_size: how many to process at once (might need to lower for small GPUs)
+    
+    returns: numpy array of embeddings (shape: [n_samples, hidden_dim])
     """
     # Initialize BERT
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -38,8 +36,8 @@ def get_bert_embeddings(texts: List[str], batch_size: int = 32) -> np.ndarray:
             all_embeddings.append(mean_embeddings)
         return torch.cat(all_embeddings).numpy()
     
-    print("[INFO] Generating BERT embeddings...")
+    print(" Generating BERT embeddings")
     embeddings = get_bert_mean_embeddings(texts, batch_size)
-    print("[INFO] Embeddings ready.")
+    print("Embeddings ready.")
     
     return embeddings

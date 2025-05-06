@@ -1,4 +1,4 @@
-"""Main module for toxic comment classification."""
+"""Main script for running toxic comment detection."""
 
 import os
 import sys
@@ -31,22 +31,21 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 
 def main(data_path: str = None):
-    """Run the complete toxic comment classification pipeline.
-    
-    Args:
-        data_path: Path to the input CSV file. If None, uses default path in data/raw/train.csv
+    """Runs the whole toxic comment pipeline — from loading data to saving metrics.
+
+        data_path: path to CSV file (or uses data/raw/train.csv by default)
     """
     try:
-        # Define label names
+        
         label_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
         
-        # Create base paths relative to project root
+        
         base_path = project_root
         models_path = base_path / "models"
         outputs_path = base_path / "outputs"
         data_path = data_path or (base_path / "data" / "raw" / "train.csv")
         
-        # Verify data file exists
+        
         if not Path(data_path).exists():
             raise FileNotFoundError(
                 f"Data file not found at {data_path}. Please ensure the file exists.\n"
@@ -54,7 +53,7 @@ def main(data_path: str = None):
                 f"Project root: {project_root}"
             )
         
-        # Create output directories
+        
         (models_path / "embeddings").mkdir(parents=True, exist_ok=True)
         (models_path / "saved").mkdir(parents=True, exist_ok=True)
         (outputs_path / "figures").mkdir(parents=True, exist_ok=True)
@@ -63,7 +62,7 @@ def main(data_path: str = None):
         # -----------------------
         # 1. Load and Inspect Data
         # -----------------------
-        print("[INFO] Loading data...")
+        print("Loading data")
         df_train = pd.read_csv(data_path, on_bad_lines='skip')
         
         # Verify required columns exist
@@ -72,12 +71,12 @@ def main(data_path: str = None):
         if missing_columns:
             raise ValueError(f"Missing required columns: {missing_columns}")
         
-        print(f"[INFO] Loaded {len(df_train)} samples")
+        print(f"Loaded {len(df_train)} samples")
         
         # -----------------------
         # 2. Preprocessing & Identity Tagging
         # -----------------------
-        print("[INFO] Preprocessing data...")
+        print("Preprocessing data")
         nltk.download('stopwords', quiet=True)
         nltk.download('wordnet', quiet=True)
         nltk.download('omw-1.4', quiet=True)
@@ -102,35 +101,35 @@ def main(data_path: str = None):
             words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
             return " ".join(words)
         
-        # Clean and preprocess data
-        print("[INFO] Cleaning text and adding identity tags...")
+        
+        print("Cleaning text and adding identity tags")
         df_train['has_identity'] = df_train['comment_text'].apply(has_identity_term)
         df_train['clean_comment'] = df_train['comment_text'].apply(clean_text)
         
-        # Log text lengths before filtering
+        
         text_lengths = df_train['clean_comment'].str.split().str.len()
-        print(f"[INFO] Text length distribution before filtering:")
+        print(f"Text length distribution before filtering:")
         print(f"Min length: {text_lengths.min()}")
         print(f"Max length: {text_lengths.max()}")
         print(f"Mean length: {text_lengths.mean():.2f}")
         print(f"Median length: {text_lengths.median()}")
         
-        # Remove only empty comments, keep all others
+        
         initial_len = len(df_train)
         df_train = df_train[df_train['clean_comment'].str.strip().str.len() > 0]  # Only remove empty strings
         removed_count = initial_len - len(df_train)
-        print(f"[INFO] Removed {removed_count} empty comments")
+        print(f"Removed {removed_count} empty comments")
         
         if removed_count == initial_len:
-            print("[WARNING] All comments were removed during cleaning. Sample of original comments:")
+            print(" warning all comments were removed during cleaning. Sample of original comments:")
             print(df_train['comment_text'].head())
             raise ValueError("All comments were removed during cleaning. Please check the input data.")
         
-        # Check minimum sample size with a more lenient requirement
-        MIN_SAMPLES = 3  # Reduced from 10 to 3 for small datasets
+        
+        MIN_SAMPLES = 3  
         if len(df_train) < MIN_SAMPLES:
-            print(f"[ERROR] Insufficient samples after preprocessing. Need at least {MIN_SAMPLES} samples, got {len(df_train)}")
-            print("[INFO] Sample of cleaned comments:")
+            print(f" error Insufficient samples after preprocessing. Need at least {MIN_SAMPLES} samples, got {len(df_train)}")
+            print("Sample of cleaned comments:")
             print(df_train['clean_comment'].head())
             raise ValueError(f"Insufficient samples after preprocessing. Need at least {MIN_SAMPLES} samples")
         
@@ -138,18 +137,18 @@ def main(data_path: str = None):
         X_text = df_train['clean_comment'].fillna('').tolist()
         Y = df_train[label_names].values
         
-        print(f"[INFO] Final dataset size: {len(X_text)} samples")
-        print(f"[INFO] Number of labels: {Y.shape[1]}")
+        print(f"Final dataset size: {len(X_text)} samples")
+        print(f"Number of labels: {Y.shape[1]}")
         
         if len(X_text) == 0:
-            print("[ERROR] No valid texts found after preprocessing. Sample of cleaned comments:")
+            print(" Error No valid texts found after preprocessing. Sample of cleaned comments:")
             print(df_train['clean_comment'].head())
             raise ValueError("No valid texts found after preprocessing")
         
         # -----------------------
         # 3. BERT Embedding
         # -----------------------
-        print("[INFO] Initializing BERT...")
+        print("Initializing BERT")
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         model = BertModel.from_pretrained('bert-base-uncased')
         model.eval()
@@ -174,7 +173,7 @@ def main(data_path: str = None):
                 raise ValueError("No valid texts found in input")
             
             if len(valid_texts) != len(texts):
-                print(f"[WARNING] Filtered out {len(texts) - len(valid_texts)} invalid texts")
+                print(f" Warning Filtered out {len(texts) - len(valid_texts)} invalid texts")
             
             all_embeddings = []
             for i in range(0, len(valid_texts), batch_size):
@@ -189,13 +188,13 @@ def main(data_path: str = None):
                         max_length=128
                     )
                     
-                    # Generate embeddings
+                    # Generating embeddings
                     outputs = model(**inputs)
                     mean_embeddings = outputs.last_hidden_state.mean(dim=1)
                     all_embeddings.append(mean_embeddings)
-                    print(f"[INFO] Processed batch {i//batch_size + 1}/{(len(valid_texts) + batch_size - 1)//batch_size}")
+                    print(f"Processed batch {i//batch_size + 1}/{(len(valid_texts) + batch_size - 1)//batch_size}")
                 except Exception as e:
-                    print(f"[ERROR] Failed to process batch {i//batch_size + 1}: {str(e)}")
+                    print(f"Failed to process batch {i//batch_size + 1}: {str(e)}")
                     continue
             
             if not all_embeddings:
@@ -206,20 +205,20 @@ def main(data_path: str = None):
             except Exception as e:
                 raise ValueError(f"Error concatenating embeddings: {str(e)}")
         
-        print("[INFO] Generating BERT embeddings...")
-        print(f"[INFO] Processing {len(X_text)} texts...")
+        print("Generating BERT embeddings")
+        print(f"Processing {len(X_text)} texts")
         X_bert = get_bert_mean_embeddings(X_text)
-        print(f"[INFO] Generated embeddings shape: {X_bert.shape}")
+        print(f"Generated embeddings shape: {X_bert.shape}")
         
-        # Save embeddings
-        print("[INFO] Saving embeddings...")
+        # Save them embeddings
+        print("Saving embeddings")
         np.save(models_path / "embeddings" / "bert_embeddings.npy", X_bert)
-        print("[INFO] Embeddings saved successfully.")
+        print("Embeddings saved successfully.")
         
         # -----------------------
         # 4. Model Training (LightGBM)
         # -----------------------
-        print("[INFO] Initializing model...")
+        print("Initializing model.")
         base_model = LGBMClassifier(objective='binary', random_state=42, n_jobs=-1)
         param_space = {
             'estimator__num_leaves': Integer(20, 150),
@@ -232,9 +231,9 @@ def main(data_path: str = None):
         
         multi_target_model = MultiOutputClassifier(base_model)
         
-        # Adjust cross-validation strategy based on sample size
+        # Adjust cross-validation based on sample size
         if len(X_bert) < 10:
-            print("[WARNING] Small dataset detected. Using simpler validation strategy.")
+            print(" warning Small dataset detected. Using simpler validation strategy.")
             cv_strategy = 2  # Use 2-fold CV for small datasets
         else:
             cv_strategy = MultilabelStratifiedKFold(n_splits=3, shuffle=True, random_state=42)
@@ -246,21 +245,21 @@ def main(data_path: str = None):
             estimator=multi_target_model,
             search_spaces=param_space,
             cv=cv_strategy,
-            n_iter=min(25, len(X_bert)),  # Reduce iterations for small datasets
+            n_iter=min(25, len(X_bert)),  
             scoring=make_scorer(custom_macro_f1),
             verbose=0,
             n_jobs=-1,
             random_state=42
         )
         
-        print("[INFO] Starting Bayesian hyperparameter optimization...")
+        print("Starting Bayesian hyperparameter optimization.")
         opt.fit(X_bert, Y)
-        print("[INFO] Optimization completed.")
+        print("Optimization completed.")
         
         # -----------------------
         # 5. Threshold Tuning
         # -----------------------
-        print("[INFO] Tuning thresholds...")
+        print("Tuning thresholds")
         def find_best_thresholds(y_true, y_probs):
             thresholds = []
             for i in range(y_true.shape[1]):
@@ -291,7 +290,7 @@ def main(data_path: str = None):
         # -----------------------
         # 7. Identity-Term F1 Visualization
         # -----------------------
-        print("[INFO] Generating fairness visualization...")
+        print("Generating fairness visualization")
         identity_f1 = {}
         for term in identity_terms:
             mask = df_train['comment_text'].str.lower().str.contains(term)
@@ -312,14 +311,14 @@ def main(data_path: str = None):
         plt.close()
         
         # -----------------------
-        # 8. Save Artifacts for Benchmarking
+        # 8. Saving Artifacts for Benchmarking
         # -----------------------
-        print("\n[INFO] Saving model and data artifacts...")
+        print("\n Saving model and data artifacts")
         np.save(models_path / "embeddings" / "X_bert_test.npy", X_bert)
         pd.DataFrame(Y, columns=label_names).to_csv(outputs_path / "results" / "Y_test.csv", index=False)
         dump(opt.best_estimator_, models_path / "saved" / "opt_model.joblib")
         
-        # Save evaluation metrics
+        # Saving evaluation metrics
         eval_metrics = {
             'f1_macro': f1_score(Y, Y_pred_opt, average='macro'),
             'f1_micro': f1_score(Y, Y_pred_opt, average='micro'),
@@ -336,11 +335,11 @@ def main(data_path: str = None):
             }
         }
         
-        # Save metrics to JSON
+        # Saving metrics to JSON
         with open(outputs_path / "results" / "eval_results.json", 'w') as f:
             json.dump(eval_metrics, f, indent=4)
         
-        print("[INFO] Artifacts saved successfully.")
+        print("Artifacts saved successfully.")
         
         return {
             'model': opt.best_estimator_,

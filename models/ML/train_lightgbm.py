@@ -1,4 +1,4 @@
-"""Train LightGBM model for toxic comment classification."""
+"""Train LightGBM model for toxic comment classification. GradientBoosting"""
 
 import numpy as np
 from sklearn.multioutput import MultiOutputClassifier
@@ -24,10 +24,10 @@ def train_lightgbm(
     Returns:
         Trained model and validation metrics
     """
-    # Initialize base model
+    # Initialize
     base_model = LGBMClassifier(objective='binary', random_state=42, n_jobs=-1)
     
-    # Define parameter space for Bayesian optimization
+    # Parameters and their ranges
     param_space = {
         'estimator__num_leaves': Integer(20, 150),
         'estimator__max_depth': Integer(3, 10),
@@ -37,17 +37,17 @@ def train_lightgbm(
         'estimator__colsample_bytree': Real(0.6, 1.0)
     }
     
-    # Create multi-output classifier
+    # Multi-output classifier
     multi_target_model = MultiOutputClassifier(base_model)
     
-    # Define cross-validation strategy
+    # I am using stratified cross-validation
     cv_strategy = MultilabelStratifiedKFold(n_splits=3, shuffle=True, random_state=42)
     
-    # Define custom scoring function
+    # Scoring
     def custom_macro_f1(y_true, y_pred):
         return f1_score(y_true, y_pred, average='macro')
     
-    # Initialize Bayesian optimization
+    # Bayesian optimization - more optimal 
     opt = BayesSearchCV(
         estimator=multi_target_model,
         search_spaces=param_space,
